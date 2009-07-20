@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="Windows-1252"?>
+<VisualStudioPropertySheet
+	ProjectType="Visual C++"
+	Version="8.00"
+	Name="Python"
+	>
+	<Tool
+		Name="VCCLCompilerTool"
+		AdditionalIncludeDirectories="&quot;$(PYTHON_DIR)\include\$(PYTHON_VERSION)&quot;"
+	/>
+	<Tool
+		Name="VCLinkerTool"
+		AdditionalDependencies="python$(PYTHON_VERSION).lib"
+		AdditionalLibraryDirectories="&quot;$(PYTHON_DIR)\lib\$(PlatformName)\$(PYTHON_VERSION)&quot;"
+	/>
+</VisualStudioPropertySheet>
