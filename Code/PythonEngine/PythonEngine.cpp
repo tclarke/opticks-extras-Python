@@ -7,9 +7,11 @@
  */
 
 #include "AppVerify.h"
+#include "FileResource.h"
 #include "MessageLogResource.h"
 #include "OpticksModule.h"
 #include "PythonEngine.h"
+#include "PythonEngineOptions.h"
 #include "PythonVersion.h"
 #include "PlugInArgList.h"
 #include "PlugInRegistration.h"
@@ -18,7 +20,6 @@
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
 #include <sstream>
-//#include <Qsci/qscilexerpython.h>
 
 REGISTER_PLUGIN_BASIC(Python, PythonEngine);
 REGISTER_PLUGIN_BASIC(Python, PythonInterpreter);
@@ -67,14 +68,13 @@ bool PythonEngine::execute(PlugInArgList* pInArgList, PlugInArgList* pOutArgList
 {
    try
    {
+      Py_SetProgramName("opticks");
       Py_Initialize();
       init_opticks();
       checkErr();
       auto_obj sysPath(PySys_GetObject("path"));
-      /*std::string newPath =
-         Service<ConfigurationSettings>()->getSettingSupportFilesPath()->getFullPathAndName() + "/site-packages";*/
       std::string newPath =
-         "C:/Opticks/TrunkExtras/Python/Release/SupportFiles/site-packages";
+         Service<ConfigurationSettings>()->getSettingSupportFilesPath()->getFullPathAndName() + "/site-packages";
       auto_obj newPathItem(PyString_FromString(newPath.c_str()), true);
       VERIFYNR(PyList_Append(sysPath, newPathItem) == 0);
       VERIFYNR(PySys_SetObject("path", sysPath) == 0);
@@ -107,6 +107,34 @@ bool PythonEngine::execute(PlugInArgList* pInArgList, PlugInArgList* pOutArgList
       PyObject_SetAttrString(mInterpreter, "stdout", mStdout);
       PyObject_SetAttrString(mInterpreter, "stderr", mStderr);
       checkErr();
+
+      const Filename* pUserFile = PythonEngineOptions::getSettingUserFile();
+      std::string userFileName = (pUserFile == NULL) ? "" : pUserFile->getFullPathAndName();
+      FileResource userFile(userFileName.c_str(), "rt");
+      if (userFile.get() != NULL)
+      {
+         while (!feof(userFile))
+         {
+            char pBuf[4096];
+            size_t readSize = fread(pBuf, sizeof(char), 4096, userFile);
+            if (readSize == 0)
+            {
+               break;
+            }
+            auto_obj cnt(PyObject_CallMethod(mStdin, "write", "sl", pBuf, readSize), true);
+            checkErr();
+         }
+         auto_obj useps1(PyObject_CallMethod(mInterpreter, "processEvent", NULL), true);
+         checkErr();
+         if (useps1 == Py_True)
+         {
+            mPrompt = ">>> ";
+         }
+         else
+         {
+            throw PythonError("Invalid user file!");
+         }
+      }
    }
    catch(const PythonError& err)
    {
@@ -240,6 +268,14 @@ PythonInterpreter::~PythonInterpreter()
 bool PythonInterpreter::execute(PlugInArgList* pInArgList, PlugInArgList* pOutArgList)
 {
    VERIFY(pInArgList != NULL && pOutArgList != NULL);
+   if (!PythonEngineOptions::getSettingInteractiveAvailable())
+   {
+      std::string returnType("Error");
+      std::string returnText = "Interactive interpreter has been disabled.";
+      VERIFY(pOutArgList->setPlugInArgValue(ReturnTypeArg(), &returnType));
+      VERIFY(pOutArgList->setPlugInArgValue(OutputTextArg(), &returnText));
+      return true;
+   }
    
    std::string command;
    if (!pInArgList->getPlugInArgValue(Interpreter::CommandArg(), command))
@@ -300,12 +336,6 @@ std::string PythonInterpreter::getPrompt() const
    PythonEngine* pEngine = dynamic_cast<PythonEngine*>(plugins.front());
    VERIFYRV(pEngine != NULL, ">>> ");
    return pEngine->getPrompt();
-}
-
-QsciLexer* PythonInterpreter::getLexer() const
-{
-   //return new QsciLexerPython();
-   return NULL;
 }
 
 PythonInterpreterWizardItem::PythonInterpreterWizardItem()
@@ -386,40 +416,4 @@ bool PythonInterpreterWizardItem::execute(PlugInArgList* pInArgList, PlugInArgLi
    progress.report("Executing Python command.", 100, NORMAL);
    progress.upALevel();
    return true;
-}
-
-
-bool PythonInterpreter::getInputSpecification(PlugInArgList*& pArgList)
-{
-   VERIFY((pArgList = Service<PlugInManagerServices>()->getPlugInArgList()) != NULL);
-   VERIFY(pArgList->addArg<std::string>(Interpreter::CommandArg()));
-   return true;
-}
-
-bool PythonInterpreter::getOutputSpecification(PlugInArgList*& pArgList)
-{
-   VERIFY((pArgList = Service<PlugInManagerServices>()->getPlugInArgList()) != NULL);
-   VERIFY(pArgList->addArg<std::string>(Interpreter::ReturnTypeArg(), "Output"));
-   VERIFY(pArgList->addArg<std::string>(Interpreter::OutputTextArg()));
-   return true;
-}
-
-void PythonInterpreter::getKeywordList(std::vector<std::string>& list) const
-{
-   list.clear();
-}
-
-bool PythonInterpreter::getKeywordDescription(const std::string& keyword, std::string& description) const
-{
-   return false;
-}
-
-void PythonInterpreter::getUserDefinedTypes(std::vector<std::string>& list) const
-{
-   list.clear();
-}
-
-bool PythonInterpreter::getTypeDescription(const std::string& type, std::string& description) const
-{
-   return false;
 }
