@@ -56,7 +56,7 @@
 			<Tool
 				Name="VCPostBuildEventTool"
 				Description="Prepping for run..."
-				CommandLine="&quot;$(SolutionDir)\build-Python.py&quot; --prep --mode=debug --arch=64 -v"
+				CommandLine="&quot;$(SolutionDir)\..\build-Python.py&quot; --prep --mode=debug --arch=64 -v"
 			/>
 		</Configuration>
 		<Configuration
