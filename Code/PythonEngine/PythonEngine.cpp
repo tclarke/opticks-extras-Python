@@ -23,6 +23,7 @@
 
 REGISTER_PLUGIN_BASIC(Python, PythonEngine);
 REGISTER_PLUGIN_BASIC(Python, PythonInterpreter);
+REGISTER_PLUGIN_BASIC(Python, PythonInterpreterWizardItem);
 
 PythonEngine::PythonEngine() : mPrompt(">>> ")
 {
