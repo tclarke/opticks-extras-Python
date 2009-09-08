@@ -7,11 +7,12 @@
 	<Tool
 		Name="VCCLCompilerTool"
 		AdditionalIncludeDirectories="&quot;$(PYTHON_DIR)\include\$(PYTHON_VERSION)&quot;;&quot;$(PYTHON_DIR)\include\$(PYTHON_VERSION)\$(PlatformName)&quot;"
+		PreprocessorDefinitions="PYTHON_VERSION=\&quot;$(PYTHON_VERSION)\&quot;"
 	/>
 	<Tool
 		Name="VCLinkerTool"
 		AdditionalDependencies="python$(PYTHON_VERSION).lib"
-		AdditionalLibraryDirectories="&quot;$(PYTHON_DIR)\lib\$(PlatformName)\$(PYTHON_VERSION)&quot;"
+		AdditionalLibraryDirectories="&quot;$(PYTHON_DIR)\lib\$(PlatformName)&quot;"
 		IgnoreDefaultLibraryNames="python$(PYTHON_VERSION)_d.lib"
 	/>
 </VisualStudioPropertySheet>

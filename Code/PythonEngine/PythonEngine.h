@@ -13,6 +13,7 @@
 #include "InterpreterShell.h"
 #include "WizardShell.h"
 #define PY_SSIZE_T_CLEAN
+#undef _DEBUG
 #include <Python.h>
 
 class QsciLexer;
