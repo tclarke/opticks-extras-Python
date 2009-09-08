@@ -11,6 +11,7 @@
 #define OPTICKSMODULE_H
 
 #define PY_SSIZE_T_CLEAN
+#undef _DEBUG
 #include <Python.h>
 
 PyMODINIT_FUNC init_opticks();
