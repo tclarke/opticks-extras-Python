@@ -13,6 +13,3 @@
       aebl:id "opticks@ballforge.net" ;
       aebl:minVersion "4.3.0" ;
       aebl:maxVersion "4.3.*" ] .
-   opticks:helpEntry [
-      opticks:name "Python Command Help" ;
-      opticks:url "aeb:///Help/Python/html/index.html" ] .
