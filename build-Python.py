@@ -76,11 +76,11 @@ class Builder:
         if clean_build_first:
             if self.verbosity > 1:
                 print "Cleaning compilation..."
-            self.compile_code(buildenv, True, concurrency)
+            self.compile_code(buildenv, build_opticks, True, concurrency)
             if self.verbosity > 1:
                 print "Done cleaning compilation"
 
-        self.compile_code(buildenv, False, concurrency)
+        self.compile_code(buildenv, build_opticks, False, concurrency)
         if self.verbosity > 1:
             print "Done building Python plug-ins"
 
@@ -90,7 +90,7 @@ class Builder:
         extension_plugin_path = join(self.get_binaries_dir(), "PlugIns")
         if not os.path.exists(extension_plugin_path):
             os.makedirs(extension_plugin_path)
-        opticks_plugin_path = os.path.abspath(self.get_comet_plugin_dir())
+        opticks_plugin_path = os.path.abspath(self.get_plugin_dir())
         copy_files_in_dir(opticks_plugin_path, extension_plugin_path, plugin_suffixes)
         if self.verbosity > 1:
             print "Done copying Opticks plug-ins"
@@ -121,47 +121,6 @@ class Builder:
             if self.verbosity > 1:
                 print "Done creating ApplicationUserSettings folder"
 
-    def build_doxygen(self, build, artifacts_dir):
-        if self.verbosity > 1:
-            print "Generating HTML..."
-        doc_path = os.path.abspath(join("Code", "Build", "DoxygenOutput"))
-        if os.path.exists(doc_path):
-            #delete any already generated documentation
-            shutil.rmtree(doc_path, True)
-        os.makedirs(doc_path)
-        doxygen_cmd = self.get_doxygen_path()
-        config_dir = os.path.abspath(join("Code", "ApiDocs"))
-        args = [doxygen_cmd, join(config_dir, "application.dox")]
-        env = os.environ
-        env["SOURCE"] = os.path.abspath("Code")
-        env["OUTPUT_DIR"] = doc_path
-        env["CONFIG_DIR"] = config_dir
-        graphviz_dir = os.path.abspath(join(self.depend_path,
-            "graphviz", "app"))
-        env["DOT_DIR"] = join(graphviz_dir, "bin")
-        self.other_doxygen_prep(build, env)
-        retcode = execute_process(args, env=env)
-        if retcode != 0:
-            raise ScriptException("Unable to run doxygen generation script")
-        if self.verbosity > 1:
-            print "Done generating HTML"
-        if artifacts_dir is not None:
-            if self.verbosity > 1:
-                print "Compressing Doxygen because --artifact-dir "\
-                    "was provided."
-            html_path = join(doc_path, "html")
-            zip_name = "doxygen.zip"
-            zip_path = os.path.abspath(join(artifacts_dir, zip_name))
-            the_zip = zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED)
-            for cur_dir, dirs, files in os.walk(html_path):
-                arc_dir = cur_dir[len(html_path):]
-                for the_file in files:
-                    the_zip.write(join(cur_dir, the_file),
-                        join(arc_dir,the_file))
-            the_zip.close()
-            if self.verbosity > 1:
-                print "Done compressing Doxygen"
-
 class WindowsBuilder(Builder):
     def __init__(self, dependencies, opticks_code_dir, build_in_debug,
                  opticks_build_dir, visualstudio, verbosity):
@@ -169,13 +128,13 @@ class WindowsBuilder(Builder):
             opticks_build_dir, verbosity)
         self.vs_path = visualstudio
 
-    def compile_code(self, env, clean, concurrency):
+    def compile_code(self, env, target, clean, concurrency):
         solution_file = os.path.abspath("Code/Python.sln")
-        self.build_in_visual_studio(solution_file,
+        self.build_in_visual_studio(solution_file, target,
             self.build_debug_mode, self.is_64_bit, concurrency,
             self.vs_path, env, clean)
 
-    def get_comet_plugin_dir(self):
+    def get_plugin_dir(self):
         return os.path.abspath(join(self.opticks_build_dir,
             "Binaries-%s-%s" % (self.platform, self.mode), "PlugIns"))
 
@@ -187,39 +146,21 @@ class WindowsBuilder(Builder):
         build_dir = os.path.join(os.path.abspath("Code"), "Build")
         return os.path.abspath(join(build_dir,
             "Binaries-%s-%s" % (self.platform, self.mode)))
-    
-    def get_doxygen_path(self):
-        return join(self.depend_path, "doxygen", "bin", "doxygen.exe")
-
-    def other_doxygen_prep(self, build, env):
-        if build != "all":
-            return
-        if self.verbosity > 1:
-            print "Enabling CHM generation"
-        hhc_path = os.path.abspath(join(self.ms_help_compiler, "hhc.exe"))
-        if not(os.path.exists(hhc_path)):
-            raise ScriptException("MS Help Compiler path of %s is "\
-                "invalid, see --ms-help-compiler" %
-                (self.ms_help_compiler))
-        env["GENERATE_CHM"] = "YES"
-        env["MICROSOFT_HELP_COMPILER"] = hhc_path
-        chm_file = "Python.chm"
-        env["CHM_NAME"] = chm_file
 
     def prep_to_run(self):
         self.prep_to_run_helper([".dll", ".exe"])
 
-    def build_in_visual_studio(self, solutionfile, debug,
+    def build_in_visual_studio(self, solutionfile, python_version, debug,
                                build_64_bit, concurrency, vspath,
                                environ, clean):
-        if debug and not build_64_bit:
-            mode = "Debug|Win32"
-        if not debug and not build_64_bit:
-            mode = "Release|Win32"
-        if debug and build_64_bit:
-            mode = "Debug|x64"
-        if not debug and build_64_bit:
-            mode = "Release|x64"
+        if debug:
+            mode = "Debug%s" % python_version
+        else:
+            mode = "Release%s" % python_version
+        if build_64_bit:
+            mode += "|x64"
+        else:
+            mode += "|Win32"
 
         msdev_exec = join(vspath, "vc", "vcpackages", "vcbuild.exe")
         arguments = [msdev_exec, solutionfile]
@@ -257,22 +198,10 @@ class SolarisBuilder(Builder):
         Builder.__init__(self, dependencies, opticks_code_dir, build_in_debug,
             opticks_build_dir, verbosity)
 
-    def get_doxygen_path(self):
-        return join(self.depend_path, "doxygen", "bin", "doxygen")
-
-    def other_doxygen_prep(self, build, env):
-        graphviz_dir = os.path.abspath(join(self.depend_path,
-            "graphviz", "app"))
-        env["GVBINDIR"] = join(graphviz_dir, "lib", "graphviz")
-        new_value = join(graphviz_dir, "lib")
-        if env.has_key("LD_LIBRARY_PATH_32"):
-            new_value = new_value + ":" + env["LD_LIBRARY_PATH_32"]
-        env["LD_LIBRARY_PATH_32"] = new_value
-
-    def compile_code(self, env, clean, concurrency):
+    def compile_code(self, env, target, clean, concurrency):
         #Build extension plugins
         self.run_scons(os.path.abspath("."), self.build_debug_mode,
-            concurrency, env, clean, ["all"])
+            concurrency, env, clean, [target])
 
     def run_scons(self, path, debug, concurrency, environ,
                   clean, extra_args=None):
@@ -291,7 +220,7 @@ class SolarisBuilder(Builder):
         if ret_code != 0:
             raise ScriptException("Scons did not compile project")
 
-    def get_comet_plugin_dir(self):
+    def get_plugin_dir(self):
         return os.path.abspath(join(self.opticks_build_dir,
             "Binaries-solaris-sparc-%s" % (self.mode), "PlugIns"))
 
@@ -312,7 +241,7 @@ def read_version_h():
             rdata[fields[1]] = " ".join(fields[2:])
     return rdata
 
-def build_installer(aeb_platforms=[], aeb_output=None, depend_path=None, verbosity=None):
+def build_installer(aeb_platforms=[], python_version=None, aeb_output=None, depend_path=None, verbosity=None):
     if len(aeb_platforms) == 0:
         raise ScriptException("Invalid AEB platform specification. Valid values are: %s." % ", ".join(aeb_platform_mapping.keys()))
     if sys.platform == "win32":
@@ -334,14 +263,19 @@ def build_installer(aeb_platforms=[], aeb_output=None, depend_path=None, verbosi
     metadata = parser.statements()
     parser.cleanup()
 
+    python_version_str = str(python_version)
+    python_version_str = python_version_str[0] + "." + python_version_str[1:]
     manifest = metadata["urn:aebl:install-manifest"]
     version_info = read_version_h()
     manifest[PF_AEBL + "version"] = [version_info["PYTHON_VERSION_NUMBER"]]
-    manifest[PF_AEBL + "name"] = [version_info["PYTHON_NAME"]]
-    manifest[PF_AEBL + "description"] = [version_info["PYTHON_NAME_LONG"]]
+    manifest[PF_AEBL + "name"] = [version_info["PYTHON_NAME"][1:-1] + " " + python_version_str]
+    manifest[PF_AEBL + "description"] = [version_info["PYTHON_NAME_LONG"][1:-1] + " for Python version %s" % python_version_str]
     manifest[PF_AEBL + "targetPlatform"] = aeb_platforms
+    tmpid = manifest[PF_AEBL + "id"][0].split('@')
+    tmpid[0] += str(python_version)
+    manifest[PF_AEBL + "id"] = ["@".join(tmpid)]
 
-    out_path = os.path.abspath(join("Installer","Python.aeb"))
+    out_path = os.path.abspath(join("Installer","Python%s.aeb" % python_version))
     if aeb_output is not None:
        out_path = os.path.abspath(aeb_output)
     out_dir = os.path.dirname(out_path)
@@ -362,10 +296,10 @@ def build_installer(aeb_platforms=[], aeb_output=None, depend_path=None, verbosi
     zfile.writestr("install.rdf", install_rdf)
     extension_settings_dir = join(os.path.abspath("Release"), "DefaultSettings")
     copy_files_in_dir_to_zip(extension_settings_dir, join("content", "DefaultSettings"), zfile, [".cfg"], ["_svn", ".svn"])
+    support_files_dir = join(os.path.abspath("Release"), "SupportFiles")
+    copy_files_in_dir_to_zip(support_files_dir, join("content", "SupportFiles"), zfile, [".py"], ["_svn", ".svn"])
     copy_file_to_zip(os.path.abspath("Installer"), "license", "lgpl-2.1.txt", zfile)
     copy_file_to_zip(os.path.abspath("Installer"), "icon", "python.png", zfile)
-    doc_path = os.path.abspath(join("Code", "Build", "DoxygenOutput"))
-    copy_files_in_dir_to_zip(doc_path, join("content", "Help", "Python"), zfile)
 
     # platform dependent items
     for plat in aeb_platforms:
@@ -376,16 +310,24 @@ def build_installer(aeb_platforms=[], aeb_output=None, depend_path=None, verbosi
             bin_dir = join(os.path.abspath("Code"), "Build")
             if plat_parts[0] == "win32":
                 bin_dir = join(bin_dir, "Binaries-%s-%s" % (Windows32bitBuilder.platform, plat_parts[-1]))
+                dep_dir = join(depend_path, "python", "bin", Windows32bitBuilder.platform)
             else:
                 bin_dir = join(bin_dir, "Binaries-%s-%s" % (Windows64bitBuilder.platform, plat_parts[-1]))
+                dep_dir = join(depend_path, "python", "bin", Windows64bitBuilder.platform)
             extension_plugin_path = join(bin_dir, "PlugIns")
             target_plugin_path = join("platform", plat, "PlugIns")
-            copy_file_to_zip(extension_plugin_path, target_plugin_path, "PythonEngine.dll", zfile)
+            copy_file_to_zip(extension_plugin_path, target_plugin_path, "PythonEngine%s.dll" % python_version, zfile)
+            target_bin_path = join("platform", plat, "Bin")
+            copy_file_to_zip(dep_dir, target_bin_path, "python%s.dll" % python_version, zfile)
+            copy_file_to_zip(dep_dir, target_bin_path, "python%s.zip" % python_version, zfile)
         elif plat_parts[0] == 'solaris':
             bin_dir = os.path.join(os.path.abspath("Code"), "Build", "Binaries-%s-%s" % (SolarisBuilder.platform, plat_parts[-1]))
+            dep_dir = join(depend_path, "python", "bin", SolarisBuilder.platform)
             extension_plugin_path = join(bin_dir, "PlugIns")
             target_plugin_path = join("platform", plat, "PlugIns")
-            copy_file_to_zip(extension_plugin_path, target_plugin_path, "PythonEngine.so", zfile)
+            copy_file_to_zip(extension_plugin_path, target_plugin_path, "PythonEngine%s.so" % python_version, zfile)
+            target_bin_path = join("platform", plat, "Bin")
+            copy_file_to_zip(dep_dir, target_bin_path, "python%s.zip" % python_version, zfile)
         else:
             raise ScriptException("Unknown AEB platform %s" % plat)
     zfile.close()
@@ -466,19 +408,20 @@ def main(args):
     options.add_option("-m", "--mode", dest="mode",
         action="store", type="choice", choices=["debug", "release"])
     options.add_option("--clean", dest="clean", action="store_true")
-    options.add_option("--build-extension", dest="build_extension",
-        action="store", type="choice", choices=["all","none"])
+    options.add_option("--build-extension", dest="build_extension", action="store_true")
+    options.add_option("--python-version", dest="python_version",
+        action="store", type="choice", choices=["none","24","25","26"])
     options.add_option("--prep", dest="prep", action="store_true")
     options.add_option("--build-installer", dest="build_installer", action="store")
     options.add_option("--aeb-output", dest="aeb_output", action="store")
     options.add_option("--concurrency", dest="concurrency", action="store")
-    options.add_option("--build-doxygen", dest="build_doxygen")
     options.add_option("-q", "--quiet", help="Print fewer messages",
         action="store_const", dest="verbosity", const=0)
     options.add_option("-v", "--verbose", help="Print more messages",
         action="store_const", dest="verbosity", const=2)
     options.set_defaults(mode="release", clean=False,
-        build_extension="none", build_doxygen="none",
+        build_extension=False,
+        python_version="none",
         prep=False, concurrency=1, verbosity=1)
     options = options.parse_args(args[1:])[0]
 
@@ -528,7 +471,8 @@ def main(args):
                         aeb_platforms.append(aeb_platform_mappings[plat])
                     else:
                         aeb_platforms.append(plat)
-            build_installer(aeb_platforms, aeb_output, opticks_depends, options.verbosity)
+            build_installer(aeb_platforms, options.python_version,
+                              aeb_output, opticks_depends, options.verbosity)
             if options.verbosity > 1:
                 print "Done building installer"
             return 0
@@ -554,15 +498,9 @@ def main(args):
                     build_in_debug, opticks_build_dir,
                     options.visualstudio, options.verbosity)
 
-        builder.build_executable(options.clean, options.build_extension,
-            options.concurrency)
-
-        if options.build_doxygen != "none":
-           if options.verbosity > 1:
-              print "Building doxygen..."
-           builder.build_doxygen(options.build_doxygen, None)
-           if options.verbosity > 1:
-              print "Done building doxygen"
+        if options.build_extension:
+           builder.build_executable(options.clean, options.python_version,
+               options.concurrency)
 
         if options.prep:
             if options.verbosity > 1:
