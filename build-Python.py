@@ -201,7 +201,7 @@ class SolarisBuilder(Builder):
     def compile_code(self, env, target, clean, concurrency):
         #Build extension plugins
         self.run_scons(os.path.abspath("."), self.build_debug_mode,
-            concurrency, env, clean, [target])
+            concurrency, env, clean, ["PYTHONVERSION=%s" % target])
 
     def run_scons(self, path, debug, concurrency, environ,
                   clean, extra_args=None):
