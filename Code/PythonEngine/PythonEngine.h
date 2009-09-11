@@ -15,6 +15,7 @@
 #define PY_SSIZE_T_CLEAN
 #undef _DEBUG
 #include <Python.h>
+#include <stdexcept>
 
 class QsciLexer;
 
@@ -110,7 +111,15 @@ public:
    class PythonError : public std::exception
    {
    public:
-      PythonError(const std::string& what) : std::exception(what.c_str()) {}
+      PythonError(const std::string& what) : mWhat(what) {}
+      virtual ~PythonError() throw() {}
+      virtual const char* what() const throw()
+      {
+         return mWhat.c_str();
+      }
+
+   private:
+      std::string mWhat;
    };
 
 protected:
