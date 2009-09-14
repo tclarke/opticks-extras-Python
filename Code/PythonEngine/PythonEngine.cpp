@@ -1,6 +1,7 @@
 /*
  * The information in this file is
- * subject to the terms and conditions of the
+ * Copyright(c) 2007 Ball Aerospace & Technologies Corporation
+ * and is subject to the terms and conditions of the
  * GNU Lesser General Public License Version 2.1
  * The license text is available from   
  * http://www.gnu.org/licenses/lgpl.html
@@ -18,7 +19,7 @@
 #include "PlugInManagerServices.h"
 #include "ProgressTracker.h"
 #define PY_SSIZE_T_CLEAN
-#undef _DEBUG
+#undef _DEBUG // necessary to use release Python binaries with debug plug-in builds
 #include <Python.h>
 #include <sstream>
 
@@ -86,22 +87,17 @@ bool PythonEngine::execute(PlugInArgList* pInArgList, PlugInArgList* pOutArgList
       auto_obj interpDict(PyModule_GetDict(mInterpModule));
       auto_obj strBufStream(PyDict_GetItemString(interpDict, "StrBufStream"));
       checkErr();
-      Py_INCREF(Py_None);
-      Py_INCREF(Py_None);
       mStdin.reset(PyObject_CallObject(strBufStream, NULL), true);
       checkErr();
-      Py_INCREF(Py_None);
-      Py_INCREF(Py_None);
+      VERIFYNR(mStdin.get());
       mStdout.reset(PyObject_CallObject(strBufStream, NULL), true);
       checkErr();
-      Py_INCREF(Py_None);
-      Py_INCREF(Py_None);
+      VERIFYNR(mStdout.get());
       mStderr.reset(PyObject_CallObject(strBufStream, NULL), true);
       checkErr();
+      VERIFYNR(mStderr.get());
 
       auto_obj pythonInteractiveInterpreter(PyDict_GetItemString(interpDict, "PythonInteractiveInterpreter"));
-      Py_INCREF(Py_None);
-      Py_INCREF(Py_None);
       mInterpreter.reset(PyObject_CallObject(pythonInteractiveInterpreter, NULL), true);
       checkErr();
 
@@ -186,7 +182,7 @@ bool PythonEngine::processCommand(const std::string& command,
       long stderrCount = PyInt_AsLong(stderrAvailable);
       if (stderrCount > 0)
       {
-         auto_obj stderrStr(PyObject_CallMethod(mStderr, "read", "O", stderrAvailable), true);
+         auto_obj stderrStr(PyObject_CallMethod(mStderr, "read", "O", stderrAvailable.get()), true);
          checkErr();
          errorText = PyString_AsString(stderrStr);
       }
@@ -195,7 +191,7 @@ bool PythonEngine::processCommand(const std::string& command,
       long stdoutCount = PyInt_AsLong(stdoutAvailable);
       if (stdoutCount > 0)
       {
-         auto_obj stdoutStr(PyObject_CallMethod(mStdout, "read", "O", stdoutAvailable), true);
+         auto_obj stdoutStr(PyObject_CallMethod(mStdout, "read", "O", stdoutAvailable.get()), true);
          checkErr();
          returnText = PyString_AsString(stdoutStr);
       }
@@ -253,7 +249,7 @@ void PythonEngine::checkErr()
 
 PythonInterpreter::PythonInterpreter()
 {
-   setName("PythonInterpreter");
+   setName("Python");
    setDescription("Provides command line utilities to execute Python commands.");
    setDescriptorId("{171f067d-1927-4cf0-b505-f3d6bcc09493}");
    setCopyright(PYTHON_COPYRIGHT);
@@ -261,10 +257,6 @@ PythonInterpreter::PythonInterpreter()
    setProductionStatus(PYTHON_IS_PRODUCTION_RELEASE);
    allowMultipleInstances(false);
    setWizardSupported(false);
-}
-
-PythonInterpreter::~PythonInterpreter()
-{
 }
 
 bool PythonInterpreter::execute(PlugInArgList* pInArgList, PlugInArgList* pOutArgList)
@@ -278,7 +270,7 @@ bool PythonInterpreter::execute(PlugInArgList* pInArgList, PlugInArgList* pOutAr
       VERIFY(pOutArgList->setPlugInArgValue(OutputTextArg(), &returnText));
       return true;
    }
-   
+
    std::string command;
    if (!pInArgList->getPlugInArgValue(Interpreter::CommandArg(), command))
    {
@@ -350,10 +342,6 @@ PythonInterpreterWizardItem::PythonInterpreterWizardItem()
    setProductionStatus(PYTHON_IS_PRODUCTION_RELEASE);
 }
 
-PythonInterpreterWizardItem::~PythonInterpreterWizardItem()
-{
-}
-
 bool PythonInterpreterWizardItem::getInputSpecification(PlugInArgList*& pArgList)
 {
    VERIFY((pArgList = Service<PlugInManagerServices>()->getPlugInArgList()) != NULL);
@@ -375,7 +363,7 @@ bool PythonInterpreterWizardItem::getOutputSpecification(PlugInArgList*& pArgLis
 bool PythonInterpreterWizardItem::execute(PlugInArgList* pInArgList, PlugInArgList* pOutArgList)
 {
    VERIFY(pInArgList != NULL && pOutArgList != NULL);
-   
+
    std::string command;
    if (!pInArgList->getPlugInArgValue(Interpreter::CommandArg(), command))
    {

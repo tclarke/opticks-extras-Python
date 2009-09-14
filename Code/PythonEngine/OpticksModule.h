@@ -11,7 +11,7 @@
 #define OPTICKSMODULE_H
 
 #define PY_SSIZE_T_CLEAN
-#undef _DEBUG
+#undef _DEBUG // necessary to use release Python binaries with debug plug-in builds
 #include <Python.h>
 
 PyMODINIT_FUNC init_opticks();

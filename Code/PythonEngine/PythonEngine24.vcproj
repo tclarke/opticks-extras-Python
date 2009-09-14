@@ -93,10 +93,6 @@
 			<File
 				RelativePath=".\PythonEngineOptions.h"
 				>
-			</File>
-			<File
-				RelativePath=".\PythonEngineOptions.h"
-				>
 				<FileConfiguration
 					Name="Release|Win32"
 					>

@@ -27,7 +27,7 @@ PythonEngineOptions::PythonEngineOptions()
    mpUserConfig = new FileBrowser(pPythonConfigWidget);
    mpUserConfig->setBrowseCaption("Locate the Python user configuration file");
    mpUserConfig->setBrowseFileFilters("Python file (*.py *.pyc *.pyo *.pyd)");
-   
+
    QGridLayout* pPythonConfigLayout = new QGridLayout(pPythonConfigWidget);
    pPythonConfigLayout->addWidget(pUserConfLabel, 0, 0);
    pPythonConfigLayout->addWidget(mpUserConfig, 0, 1);
