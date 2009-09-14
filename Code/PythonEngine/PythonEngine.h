@@ -1,6 +1,7 @@
 /*
  * The information in this file is
- * subject to the terms and conditions of the
+ * Copyright(c) 2007 Ball Aerospace & Technologies Corporation
+ * and is subject to the terms and conditions of the
  * GNU Lesser General Public License Version 2.1
  * The license text is available from   
  * http://www.gnu.org/licenses/lgpl.html
@@ -13,11 +14,9 @@
 #include "InterpreterShell.h"
 #include "WizardShell.h"
 #define PY_SSIZE_T_CLEAN
-#undef _DEBUG
+#undef _DEBUG // necessary to use release Python binaries with debug plug-in builds
 #include <Python.h>
 #include <stdexcept>
-
-class QsciLexer;
 
 class auto_obj
 {
@@ -138,7 +137,7 @@ class PythonInterpreter : public InterpreterShell
 {
 public:
    PythonInterpreter();
-   virtual ~PythonInterpreter();
+   virtual ~PythonInterpreter() {}
 
    virtual bool execute(PlugInArgList* pInArgList, PlugInArgList* pOutArgList);
    virtual std::string getPrompt() const;
@@ -148,7 +147,7 @@ class PythonInterpreterWizardItem : public WizardShell
 {
 public:
    PythonInterpreterWizardItem();
-   virtual ~PythonInterpreterWizardItem();
+   virtual ~PythonInterpreterWizardItem() {}
    virtual bool getInputSpecification(PlugInArgList*& pArgList);
    virtual bool getOutputSpecification(PlugInArgList*& pArgList);
    virtual bool execute(PlugInArgList* pInArgList, PlugInArgList* pOutArgList);

@@ -350,10 +350,6 @@
 					/>
 				</FileConfiguration>
 			</File>
-			<File
-				RelativePath=".\PythonEngineOptions.h"
-				>
-			</File>
 		</Filter>
 		<Filter
 			Name="moc"

@@ -22,7 +22,7 @@ PyObject* get_handle(PyObject*, PyObject*)
 }
 
 PyMethodDef opticksMethods[] = {
-   {"handle", get_handle, METH_NOARGS, "Retreive an opaque handle to the Opticks services object. This is used when initializing modules within a .pyd file."},
+   {"handle", get_handle, METH_NOARGS, "Retrieve an opaque handle to the Opticks services object. This is used when initializing modules within a .pyd file."},
    {NULL, NULL, 0, NULL} // sentinel
 };
 
