@@ -9,7 +9,7 @@
 
 #include "OpticksModule.h"
 #include "PlugInRegistration.h"
-#include "PythonEngine.h"
+#include "PythonCommon.h"
 
 namespace OpticksModule
 {
