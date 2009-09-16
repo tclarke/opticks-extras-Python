@@ -111,6 +111,10 @@
 			Name="Include"
 			>
 			<File
+				RelativePath=".\Include\PythonCommon.h"
+				>
+			</File>
+			<File
 				RelativePath=".\Include\PythonVersion.h"
 				>
 			</File>
@@ -120,6 +124,10 @@
 			>
 			<File
 				RelativePath="..\Release\SupportFiles\site-packages\interpreter.py"
+				>
+			</File>
+			<File
+				RelativePath="..\Release\SupportFiles\site-packages\opticks.py"
 				>
 			</File>
 		</Filter>

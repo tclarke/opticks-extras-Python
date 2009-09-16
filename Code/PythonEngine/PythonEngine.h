@@ -12,86 +12,9 @@
 
 #include "ExecutableShell.h"
 #include "InterpreterShell.h"
+#include "PythonCommon.h"
 #include "WizardShell.h"
-#define PY_SSIZE_T_CLEAN
-#undef _DEBUG // necessary to use release Python binaries with debug plug-in builds
-#include <Python.h>
 #include <stdexcept>
-
-class auto_obj
-{
-public:
-   auto_obj() : mpObj(NULL), mOwned(false) {}
-   auto_obj(PyObject* pObj, bool takeOwnership=false) : mpObj(pObj), mOwned(takeOwnership) {}
-   ~auto_obj()
-   {
-      if (mOwned)
-      {
-         Py_XDECREF(mpObj);
-      }
-   }
-
-   /**
-    * Reset the internal pointer.
-    */
-   void reset(PyObject* pObj, bool takeOwnership=false)
-   {
-      release();
-      mpObj = pObj;
-      mOwned = takeOwnership;
-   }
-
-   /**
-    * Release ownership doing a decref if needed.
-    */
-   PyObject* release()
-   {
-      if (mpObj == NULL)
-      {
-         return NULL;
-      }
-      if (mOwned)
-      {
-         Py_DECREF(mpObj);
-         mOwned = false;
-      }
-      return mpObj;
-   }
-
-   /**
-    * Returns a borrowed reference. This object may not own the reference.
-    */
-   PyObject* get()
-   {
-      return mpObj;
-   }
-
-   /**
-    * Returns a borrowed reference. Ensures this object owns the reference.
-    */
-   PyObject* take()
-   {
-      if (mpObj == NULL)
-      {
-         return NULL;
-      }
-      if (!mOwned)
-      {
-         Py_INCREF(mpObj);
-         mOwned = true;
-      }
-      return mpObj;
-   }
-
-   operator PyObject*()
-   {
-      return get();
-   }
-
-private:
-   PyObject* mpObj;
-   bool mOwned;
-};
 
 class PythonEngine : public ExecutableShell
 {

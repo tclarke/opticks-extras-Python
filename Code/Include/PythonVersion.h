@@ -7,7 +7,6 @@
  * http://www.gnu.org/licenses/lgpl.html
  */
 
-
 #ifndef PYTHONVERSION_H
 #define PYTHONVERSION_H
 
