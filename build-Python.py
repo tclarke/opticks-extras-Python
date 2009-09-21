@@ -94,6 +94,12 @@ class Builder:
         copy_files_in_dir(opticks_plugin_path, extension_plugin_path, plugin_suffixes)
         if self.verbosity > 1:
             print "Done copying Opticks plug-ins"
+            print "Copying dependency files"
+        extension_bin_path = join(self.get_binaries_dir(), "Bin")
+        python_dependencies_path = join(self.depend_path, "python", "bin", self.platform)
+        copy_files_in_dir(python_dependencies_path, extension_bin_path, [".zip",".dll"])
+        if self.verbosity > 2:
+            print "Done copying dependency files"
 
         extension_bin_path = join(self.get_binaries_dir(), "Bin")
         if not os.path.exists(extension_bin_path):
