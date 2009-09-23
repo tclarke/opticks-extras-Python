@@ -19,6 +19,7 @@
 #include "PlugInManagerServices.h"
 #include "ProgressTracker.h"
 #include "PythonCommon.h"
+#include <sstream>
 
 REGISTER_PLUGIN_BASIC(Python, PythonEngine);
 REGISTER_PLUGIN_BASIC(Python, PythonInterpreter);
