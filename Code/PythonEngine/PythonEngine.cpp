@@ -340,6 +340,7 @@ bool PythonEngine::execute(PlugInArgList* pInArgList, PlugInArgList* pOutArgList
    {
       Py_SetProgramName("opticks");
       Py_Initialize();
+ 
       init_opticks();
       checkErr();
       auto_obj sysPath(PySys_GetObject("path"));
@@ -565,7 +566,8 @@ bool PythonInterpreter::execute(PlugInArgList* pInArgList, PlugInArgList* pOutAr
    if (plugins.size() != 1)
    {
       std::string returnType("Error");
-      std::string errorText("Unable to locate python engine.");
+      std::string errorText("Unable to locate python engine. " \
+         "Opticks may not be able to locate your Python installation. Try setting PYTHONHOME.");
       VERIFY(pOutArgList->setPlugInArgValue(Interpreter::ReturnTypeArg(), &returnType));
       VERIFY(pOutArgList->setPlugInArgValue(Interpreter::OutputTextArg(), &errorText));
       return true;
