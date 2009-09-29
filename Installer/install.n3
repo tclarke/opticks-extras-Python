@@ -11,5 +11,5 @@
    aebl:iconURL "aeb:///icon/python.png" ;
    aebl:targetApplication [
       aebl:id "opticks@ballforge.net" ;
-      aebl:minVersion "4.3.2Nightly20090904" ;
+      aebl:minVersion "4.3.2" ;
       aebl:maxVersion "4.3.*" ] .
