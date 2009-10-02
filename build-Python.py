@@ -281,6 +281,14 @@ def build_installer(aeb_platforms=[], python_version=None, aeb_output=None, depe
     tmpid[0] += str(python_version)
     manifest[PF_AEBL + "id"] = ["@".join(tmpid)]
 
+    incompat = manifest[PF_AEBL + "incompatible"]
+    for iid in incompat:
+        if metadata[iid][PF_AEBL + "id"][0].split("@")[0][-2:] == python_version:
+            incompat.remove(iid)
+            del metadata[iid]
+            break
+    manifest[PF_AEBL + "incompatible"] = incompat
+
     out_path = os.path.abspath(join("Installer","Python%s.aeb" % python_version))
     if aeb_output is not None:
        out_path = os.path.abspath(aeb_output)
