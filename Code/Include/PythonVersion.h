@@ -14,6 +14,6 @@
 #define PYTHON_NAME_LONG "Python scripting"
 #define PYTHON_COPYRIGHT "Copyright © 2009, Ball Aerospace & Technologies Corp."
 #define PYTHON_VERSION_NUMBER "1.0"
-#define PYTHON_IS_PRODUCTION_RELEASE false
+#define PYTHON_IS_PRODUCTION_RELEASE true
 
 #endif
