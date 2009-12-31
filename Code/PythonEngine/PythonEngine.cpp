@@ -489,9 +489,9 @@ void PythonEngine::checkErr()
 {
    if (PyErr_Occurred() != NULL)
    {
-      PyObject* pException=NULL;
-      PyObject* pVal=NULL;
-      PyObject* pTb=NULL;
+      PyObject* pException = NULL;
+      PyObject* pVal = NULL;
+      PyObject* pTb = NULL;
       PyErr_Fetch(&pException, &pVal, &pTb);
       PyErr_NormalizeException(&pException, &pVal, &pTb);
       PyErr_Clear();

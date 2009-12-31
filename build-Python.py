@@ -335,6 +335,7 @@ def build_installer(aeb_platforms=[], python_version=None, aeb_output=None, depe
             if python_version != '24':
                copy_file_to_zip(dep_dir, target_bin_path, "python%s.dll" % python_version, zfile)
                copy_file_to_zip(dep_dir, target_bin_path, "python%s.zip" % python_version, zfile)
+               copy_files_in_dir_to_zip(join(dep_dir, "DLLs%s" % python_version), target_bin_path, zfile, [".pyd"], ["_svn", ".svn"])
         elif plat_parts[0] == 'solaris':
             bin_dir = os.path.join(os.path.abspath("Code"), "Build", "Binaries-%s-%s" % (SolarisBuilder.platform, plat_parts[-1]))
             dep_dir = join(depend_path, "python", "bin", SolarisBuilder.platform)

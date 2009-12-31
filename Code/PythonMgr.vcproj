@@ -126,10 +126,82 @@
 				RelativePath="..\Release\SupportFiles\site-packages\interpreter.py"
 				>
 			</File>
-			<File
-				RelativePath="..\Release\SupportFiles\site-packages\opticks.py"
+			<Filter
+				Name="opticks"
 				>
-			</File>
+				<File
+					RelativePath="..\Release\SupportFiles\site-packages\opticks\__init__.py"
+					>
+				</File>
+				<File
+					RelativePath="..\Release\SupportFiles\site-packages\opticks\animation.py"
+					>
+				</File>
+				<File
+					RelativePath="..\Release\SupportFiles\site-packages\opticks\dynamictypes.py"
+					>
+				</File>
+				<File
+					RelativePath="..\Release\SupportFiles\site-packages\opticks\errors.py"
+					>
+				</File>
+				<File
+					RelativePath="..\Release\SupportFiles\site-packages\opticks\execute.py"
+					>
+				</File>
+				<File
+					RelativePath="..\Release\SupportFiles\site-packages\opticks\geo.py"
+					>
+				</File>
+				<File
+					RelativePath="..\Release\SupportFiles\site-packages\opticks\metadata.py"
+					>
+				</File>
+				<File
+					RelativePath="..\Release\SupportFiles\site-packages\opticks\utils.py"
+					>
+				</File>
+				<Filter
+					Name="data"
+					>
+					<File
+						RelativePath="..\Release\SupportFiles\site-packages\opticks\data\__init__.py"
+						>
+					</File>
+					<File
+						RelativePath="..\Release\SupportFiles\site-packages\opticks\data\aoi.py"
+						>
+					</File>
+					<File
+						RelativePath="..\Release\SupportFiles\site-packages\opticks\data\raster.py"
+						>
+					</File>
+					<File
+						RelativePath="..\Release\SupportFiles\site-packages\opticks\data\signature.py"
+						>
+					</File>
+					<File
+						RelativePath="..\Release\SupportFiles\site-packages\opticks\data\types.py"
+						>
+					</File>
+				</Filter>
+				<Filter
+					Name="view"
+					>
+					<File
+						RelativePath="..\Release\SupportFiles\site-packages\opticks\view\__init__.py"
+						>
+					</File>
+					<File
+						RelativePath="..\Release\SupportFiles\site-packages\opticks\view\layer.py"
+						>
+					</File>
+					<File
+						RelativePath="..\Release\SupportFiles\site-packages\opticks\view\view.py"
+						>
+					</File>
+				</Filter>
+			</Filter>
 		</Filter>
 	</Files>
 	<Globals>
