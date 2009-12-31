@@ -293,6 +293,10 @@
 				RelativePath=".\PythonEngineOptions.cpp"
 				>
 			</File>
+			<File
+				RelativePath=".\PythonTests.cpp"
+				>
+			</File>
 		</Filter>
 		<Filter
 			Name="Header Files"
@@ -349,6 +353,10 @@
 						Outputs="$(BuildDir)\Moc\$(ProjectName)\moc_$(InputName).cpp"
 					/>
 				</FileConfiguration>
+			</File>
+			<File
+				RelativePath=".\PythonTests.h"
+				>
 			</File>
 		</Filter>
 		<Filter

@@ -23,5 +23,5 @@
       aebl:maxVersion "*" ] ;
    aebl:targetApplication [
       aebl:id "opticks@ballforge.net" ;
-      aebl:minVersion "4.3.2" ;
+      aebl:minVersion "4.3.3A" ;
       aebl:maxVersion "4.3.*" ] .

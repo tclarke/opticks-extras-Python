@@ -10,6 +10,7 @@
 #include "OpticksModule.h"
 #include "PlugInRegistration.h"
 #include "PythonCommon.h"
+#include "PythonVersion.h"
 
 namespace OpticksModule
 {
@@ -17,12 +18,20 @@ auto_obj opticksErr;
 
 PyObject* get_handle(PyObject*, PyObject*)
 {
-   auto_obj opaque(PyCObject_FromVoidPtr(reinterpret_cast<void*>(ModuleManager::instance()->getService()), NULL), true);
+   auto_obj opaque(PyCObject_FromVoidPtr(
+      reinterpret_cast<void*>(ModuleManager::instance()->getService()), NULL), true);
    return Py_BuildValue("O", opaque.take());
 }
 
+PyObject* get_python_version(PyObject*, PyObject*)
+{
+   return PyString_FromString(PYTHON_VERSION_NUMBER);
+}
+
 PyMethodDef opticksMethods[] = {
-   {"handle", get_handle, METH_NOARGS, "Retrieve an opaque handle to the Opticks services object. This is used when initializing modules within a .pyd file."},
+   {"handle", get_handle, METH_NOARGS, "Retrieve an opaque handle to the Opticks services object. " \
+                                       "This is used when initializing modules within a .pyd file."},
+   {"pythonVersion", get_python_version, METH_NOARGS, "Retrieve the version of the Python plug-in as a string."},
    {NULL, NULL, 0, NULL} // sentinel
 };
 

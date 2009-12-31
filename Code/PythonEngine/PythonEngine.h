@@ -28,7 +28,8 @@ public:
    virtual bool execute(PlugInArgList* pInArgList, PlugInArgList* pOutArgList);
 
    virtual std::string getPrompt() const;
-   bool processCommand(const std::string& command, std::string& returnText, std::string& errorText, Progress* pProgress);
+   bool processCommand(const std::string& command, std::string& returnText,
+      std::string& errorText, Progress* pProgress);
 
    class PythonError : public std::exception
    {
