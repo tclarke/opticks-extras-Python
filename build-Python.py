@@ -8,10 +8,18 @@ import optparse
 import traceback
 import shutil
 import zipfile
+import re
+import datetime
+import string
 
 aeb_platform_mappings = {'win32':'win32-x86-msvc8.1-release',
                          'win64':'win64-x86-msvc8.1-release',
-                         'solaris':'solaris-sparc-studio12-release'}
+                         'win32-debug':'win32-x86-msvc8.1-debug',
+                         'win64-debug':'win64-x86-msvc8.1-debug',
+                         'solaris':'solaris-sparc-studio12-release',
+                         'solaris-debug':'solaris-sparc-studio12-debug'}
+
+python_versions = ['24', '25', '26']
 
 def execute_process(args, bufsize=0, executable=None, preexec_fn=None,
       close_fds=None, shell=False, cwd=None, env=None,
@@ -58,6 +66,106 @@ class Builder:
             self.mode = "debug"
         else:
             self.mode = "release"
+
+    def update_version_number(self, scheme, new_version):
+        if scheme is None or scheme == "none":
+            return
+
+        if self.verbosity > 1:
+            print "Updating version number..."
+        # Read the version directly from the file
+        try:
+            version_info = read_version_h()
+            version_number = version_info["PYTHON_VERSION_NUMBER"]
+            version_number = version_number.strip('"')
+        except:
+            raise ScriptException("Could not determine the "\
+                "current version while attempting to update "\
+                "the version")
+        if self.verbosity >= 1:
+            print "Original version # was", version_number
+
+        if new_version is not None:
+            version_number = new_version
+
+        if scheme == "nightly" or scheme == "unofficial":
+            #strip off any suffix from the version #
+            version_parts = version_number.split(".")
+            if len(version_parts) >= 2:
+                #Check for Nightly.BuildRev where BuildRev is just a number
+                #If so, strip off the BuildRev portion so the rest off the
+                #suffix stripping will work.
+                if version_parts[-2].find("Nightly") != -1:
+                    version_parts = version_parts[0:-1] #Trim off the BuildRev part
+
+            for count in range(0, len(version_parts) - 1):
+                if not(version_parts[count].isdigit()):
+                    raise ScriptException("The current version # "\
+                        "is improperly formatted.")
+            last_part = version_parts[-1]
+            match_obj = re.match("^\d+(\D*)", last_part)
+            if match_obj is None:
+                raise ScriptException("The current version # is "\
+                    "improperly formatted.")
+            version_parts[-1] = last_part[:match_obj.start(1)]
+            version_number = ".".join(version_parts)
+
+            #append on the appropriate suffix to the version #
+            if scheme == "unofficial":
+                version_number = version_number + "Unofficial"
+            elif scheme == "nightly":
+                todays_date = datetime.date.today()
+                today_str = todays_date.strftime("%Y%m%d")
+                if len(today_str) != 8:
+                    raise ScriptException("This platform does not properly "\
+                        "pad month and days to 2 digits when using "\
+                        "strftime.  Please update this script to address "\
+                        "this problem")
+                build_revision = "NoRev"
+                if os.path.exists(".svn") or os.path.exists("_svn"):
+                    process = subprocess.Popen(["svnversion", "-c", "-n", "."],
+                        stdout=subprocess.PIPE, stdin=subprocess.PIPE)
+                    stdout = process.communicate()[0]
+                    if process.returncode != 0:
+                        raise ScriptException("Problem running svnversion")
+                    version_line_split = stdout.split(":")
+                    if len(version_line_split) != 2:
+                        raise ScriptException("Unexpected output from "\
+                            "svnversion")
+                    build_revision = version_line_split[1]
+                    if build_revision.endswith("S"):
+                        raise ScriptException("Switched working copy not "\
+                            "currently supported")
+                    if build_revision.endswith("M"):
+                        build_revision = build_revision[:-1] + "*"
+
+                if not(str(build_revision).isdigit()):
+                    raise ScriptException("The Build Revision when using "\
+                        "--update-version=nightly must indicate a "\
+                        "subversion working copy that has not been modified.")
+                version_number = version_number + \
+                    "Nightly%s.%s" % (today_str, build_revision)
+        elif new_version is None:
+            print "You need to use --new-version to provide the version "\
+                "# when using the production, rc, or milestone scheme"
+
+        if self.verbosity >= 1:
+            print "Setting version # to", version_number
+
+        # Update PythonVersion.h
+        version_info["PYTHON_VERSION_NUMBER"] = '"' + version_number + '"'
+        if scheme == "production":
+            version_info["PYTHON_IS_PRODUCTION_RELEASE"] = "true"
+            if self.verbosity >= 1:
+                print "Making a production release"
+        else:
+            version_info["PYTHON_IS_PRODUCTION_RELEASE"] = "false"
+            if self.verbosity >= 1:
+                print "Making a not for production release"
+
+        update_version_h(version_info)
+        if self.verbosity > 1:
+            print "Done updating version number"
 
     def build_executable(self, clean_build_first, build_opticks, concurrency):
         #No return code, throw exception or ScriptException
@@ -239,7 +347,9 @@ class SolarisBuilder(Builder):
 
 def read_version_h():
     version_path = join("Code", "Include", "PythonVersion.h")
-    version_info = open(version_path, "rt").readlines()
+    version_file = open(version_path, "rt")
+    version_info = version_file.readlines()
+    version_file.close()
     rdata = {}
     for vline in version_info:
         fields = vline.strip().split()
@@ -247,47 +357,68 @@ def read_version_h():
             rdata[fields[1]] = " ".join(fields[2:])
     return rdata
 
-def build_installer(aeb_platforms=[], python_version=None, aeb_output=None, depend_path=None, verbosity=None):
+def update_version_h(fields_to_replace):
+    version_path = join("Code", "Include", "PythonVersion.h")
+    version_file = open(version_path, "rt")
+    version_info = version_file.readlines()
+    version_file.close()
+    version_file = open(version_path, "wt")
+    for vline in version_info:
+        fields = vline.strip().split()
+        if len(fields) >= 3 and fields[0] == '#define' and \
+                fields[1] in fields_to_replace:
+            version_file.write('#define %s %s\n' % (fields[1],
+                fields_to_replace[fields[1]]))
+        else:
+            version_file.write(vline)
+    version_file.close()
+
+def build_installer(aeb_platforms=[], python_version=None, aeb_output=None,
+                    depend_path=None, sdk_version=None, verbosity=None,
+                    solaris_dir=None):
     if len(aeb_platforms) == 0:
         raise ScriptException("Invalid AEB platform specification. Valid values are: %s." % ", ".join(aeb_platform_mapping.keys()))
-    if sys.platform == "win32":
-       os.environ['PATH'] += os.pathsep + join(depend_path, "raptor", "Bin", "Win32")
-       os.environ['PATH'] += os.pathsep + join(depend_path, "expat", "Bin", "Win32")
-    try:
-        import raptor
-    except:
-        raise ScriptException("Unable to locate raptor. Make sure the raptor dependency is installed.")
     PF_AEBL = "urn:2008:03:aebl-syntax-ns#"
     PF_OPTICKS = "urn:2008:03:opticks-aebl-extension-ns#"
 
     if verbosity > 1:
         print "Loading metadata template..."
-    parser = raptor.RaptorParser()
-    parser.set_feature(raptor.RAPTOR_FEATURE_NO_NET)
-    installer_path = os.path.abspath("Installer")
-    parser.parse_file(join(installer_path, "install.n3"))
-    metadata = parser.statements()
-    parser.cleanup()
 
     python_version_str = str(python_version)
     python_version_str = python_version_str[0] + "." + python_version_str[1:]
-    manifest = metadata["urn:aebl:install-manifest"]
+    manifest = dict()
     version_info = read_version_h()
-    manifest[PF_AEBL + "version"] = [version_info["PYTHON_VERSION_NUMBER"]]
-    manifest[PF_AEBL + "name"] = [version_info["PYTHON_NAME"][1:-1] + " " + python_version_str]
-    manifest[PF_AEBL + "description"] = [version_info["PYTHON_NAME_LONG"][1:-1] + " for Python version %s" % python_version_str]
-    manifest[PF_AEBL + "targetPlatform"] = aeb_platforms
-    tmpid = manifest[PF_AEBL + "id"][0].split('@')
-    tmpid[0] += str(python_version)
-    manifest[PF_AEBL + "id"] = ["@".join(tmpid)]
+    manifest["version"] = version_info["PYTHON_VERSION_NUMBER"][1:-1]
+    manifest["name"] = version_info["PYTHON_NAME"][1:-1] + " " + python_version_str
+    manifest["description"] = version_info["PYTHON_NAME_LONG"][1:-1] + " for Python version %s" % python_version_str
+    aebl_platform_str = ""
+    for platform in aeb_platforms:
+        aebl_platform_str += "<aebl:targetPlatform>%s</aebl:targetPlatform>\n" % (platform)
+    manifest["target_platforms"] = aebl_platform_str
+    if sdk_version is None:
+        raise ScriptException("No SDK version specified!")
+    manifest["opticks_min_version"] = sdk_version
+    manifest["python_version"] = str(python_version)
+    incompat_str = ""
+    for the_ver in python_versions:
+        if the_ver == str(python_version):
+            continue
+        incompat_str += """<aebl:incompatible>
+  <rdf:Description>
+    <aebl:id>python%s@opticks.org</aebl:id>
+    <aebl:minVersion>0.1</aebl:minVersion>
+    <aebl:maxVersion>*</aebl:maxVersion>
+  </rdf:Description>
+</aebl:incompatible>
+""" % (the_ver)
+    manifest["other_python_incompats"] = incompat_str 
 
-    incompat = manifest[PF_AEBL + "incompatible"]
-    for iid in incompat:
-        if metadata[iid][PF_AEBL + "id"][0].split("@")[0][-2:] == python_version:
-            incompat.remove(iid)
-            del metadata[iid]
-            break
-    manifest[PF_AEBL + "incompatible"] = incompat
+    rdf_path = join(os.path.abspath("Installer"), "install.rdf")
+    rdf_file = open(rdf_path, "r")
+    rdf_contents = rdf_file.read()
+    rdf_file.close()
+
+    install_rdf = string.Template(rdf_contents).substitute(manifest)
 
     out_path = os.path.abspath(join("Installer","Python%s.aeb" % python_version))
     if aeb_output is not None:
@@ -297,10 +428,6 @@ def build_installer(aeb_platforms=[], python_version=None, aeb_output=None, depe
        os.makedirs(out_dir)
     if verbosity > 1:
         print "Saving updated metadata to AEB %s..." % out_path
-    serializer = raptor.RaptorSerializer("rdfxml-abbrev")
-    serializer.statements(metadata)
-    install_rdf = serializer.serialize_to_string()
-    serializer.cleanup()
 
     if verbosity > 1:
         print "Building installation tree..."
@@ -337,12 +464,18 @@ def build_installer(aeb_platforms=[], python_version=None, aeb_output=None, depe
                copy_file_to_zip(dep_dir, target_bin_path, "python%s.zip" % python_version, zfile)
                copy_files_in_dir_to_zip(join(dep_dir, "DLLs%s" % python_version), target_bin_path, zfile, [".pyd"], ["_svn", ".svn"])
         elif plat_parts[0] == 'solaris':
-            bin_dir = os.path.join(os.path.abspath("Code"), "Build", "Binaries-%s-%s" % (SolarisBuilder.platform, plat_parts[-1]))
+            if not(is_windows()):
+                solaris_dir = "."
+            else:
+                if not(solaris_dir) or not(os.path.exists(solaris_dir)):
+                    raise ScriptException("You must use the --solaris-dir "\
+                        "command-line argument to build an AEB using "\
+                        "any of the solaris platforms.")
+            bin_dir = os.path.join(os.path.abspath(solaris_dir), "Code", "Build", "Binaries-%s-%s" % (SolarisBuilder.platform, plat_parts[-1]))
             dep_dir = join(depend_path, "python", "bin", SolarisBuilder.platform)
             extension_plugin_path = join(bin_dir, "PlugIns")
             target_plugin_path = join("platform", plat, "PlugIns")
             copy_file_to_zip(extension_plugin_path, target_plugin_path, "PythonEngine%s.so" % python_version, zfile)
-            target_bin_path = join("platform", plat, "Bin")
         else:
             raise ScriptException("Unknown AEB platform %s" % plat)
     zfile.close()
@@ -419,26 +552,55 @@ def main(args):
             action="store", type="string")
         options.add_option("--arch", dest="arch", action="store",
             type="choice", choices=["32","64"])
-        options.set_defaults(visualstudio=vs_path, arch="64")
+        options.add_option("--solaris-dir", dest="solaris_dir",
+            action="store", type="string",
+            help="This option is required when using the --build-installer "\
+                 "flag to build the Solaris platforms into an AEB when "\
+                 "running this script on the Windows platform. This "\
+                 "option should point to a directory that contains a "\
+                 "checked out and compiled copy of this extension on "\
+                 "Solaris.")
+        options.set_defaults(visualstudio=vs_path, arch="64",
+            solaris_dir=None)
     options.add_option("-m", "--mode", dest="mode",
         action="store", type="choice", choices=["debug", "release"])
     options.add_option("--clean", dest="clean", action="store_true")
     options.add_option("--build-extension", dest="build_extension", action="store_true")
     options.add_option("--python-version", dest="python_version",
-        action="store", type="choice", choices=["none","24","25","26"])
+        action="store", type="choice", choices=python_versions + ["none"])
     options.add_option("--prep", dest="prep", action="store_true")
     options.add_option("--build-installer", dest="build_installer", action="store")
     options.add_option("--aeb-output", dest="aeb_output", action="store")
+    options.add_option("--sdk-version", dest="sdk_version", action="store")
     options.add_option("--concurrency", dest="concurrency", action="store")
     options.add_option("-q", "--quiet", help="Print fewer messages",
         action="store_const", dest="verbosity", const=0)
     options.add_option("-v", "--verbose", help="Print more messages",
         action="store_const", dest="verbosity", const=2)
+    options.add_option("--update-version", dest="update_version_scheme",
+        action="store", type="choice",
+        choices=["milestone", "nightly", "none", "production",
+                 "rc", "unofficial"],
+        help="Use milestone, nightly, production, rc, unofficial or "\
+             "none.  When using milestone, production, or rc you will "\
+             "need to use --new-version to provide the complete "\
+             "version #. "\
+             "Using production will mark the extension "\
+             "as production, all others will mark the extension "\
+             "as not for production.  The unofficial and nightly "\
+             "will mutate the existing version #, so --new-version is "\
+             "not required.")
+    options.add_option("--new-version", dest="new_version",
+        action="store", type="string")
     options.set_defaults(mode="release", clean=False,
         build_extension=False,
         python_version="none",
-        prep=False, concurrency=1, verbosity=1)
+        sdk_verson=None,
+        prep=False, concurrency=1, verbosity=1,
+        update_version_scheme="none")
     options = options.parse_args(args[1:])[0]
+    if not(is_windows()):
+        options.solaris_dir = None
 
     builder = None
     try:
@@ -477,7 +639,10 @@ def main(args):
                aeb_output = options.aeb_output
             aeb_platforms = []
             if options.build_installer == "all":
-                aeb_platforms = aeb_platform_mappings.values()
+                if options.python_version != "24":
+                    aeb_platforms = aeb_platform_mappings.values()
+                else:
+                    aeb_platforms = [x for x in aeb_platform_mappings.values() if x.startswith("win")]
             else:
                 plats = options.build_installer.split(',')
                 for plat in plats:
@@ -487,7 +652,8 @@ def main(args):
                     else:
                         aeb_platforms.append(plat)
             build_installer(aeb_platforms, options.python_version,
-                              aeb_output, opticks_depends, options.verbosity)
+                aeb_output, opticks_depends, options.sdk_version,
+                options.verbosity, options.solaris_dir)
             if options.verbosity > 1:
                 print "Done building installer"
             return 0
@@ -513,6 +679,9 @@ def main(args):
                     build_in_debug, opticks_build_dir,
                     options.visualstudio, options.verbosity)
 
+        builder.update_version_number(options.update_version_scheme,
+            options.new_version)
+                
         if options.build_extension:
            builder.build_executable(options.clean, options.python_version,
                options.concurrency)
