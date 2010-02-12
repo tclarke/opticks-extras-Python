@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="Windows-1252"?>
+<VisualStudioPropertySheet
+	ProjectType="Visual C++"
+	Version="8.00"
+	Name="Python26"
+	InheritedPropertySheets="Python.vsprops"
+	>
+	<UserMacro
+		Name="PYTHON_VERSION"
+		Value="26"
+	/>
+</VisualStudioPropertySheet>
