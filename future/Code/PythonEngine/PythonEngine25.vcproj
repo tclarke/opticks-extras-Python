@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="Windows-1252"?>
+<VisualStudioProject
+	ProjectType="Visual C++"
+	Version="8.00"
+	Name="PythonEngine25"
+	ProjectGUID="{5287F93E-435F-4621-A918-42FE507FB722}"
+	RootNamespace="PythonEngine25"
+	>
+	<Platforms>
+		<Platform
+			Name="Win32"
+		/>
+		<Platform
+			Name="x64"
+		/>
+	</Platforms>
+	<ToolFiles>
+	</ToolFiles>
+	<Configurations>
+		<Configuration
+			Name="Release|Win32"
+			ConfigurationType="2"
+			InheritedPropertySheets="$(OPTICKS_CODE_DIR)\application\CompileSettings\Qt-release.vsprops;$(OPTICKS_CODE_DIR)\application\CompileSettings\32bitSettings.vsprops;$(OPTICKS_CODE_DIR)\application\CompileSettings\PlugInCommonSettings.vsprops;$(OPTICKS_CODE_DIR)\application\CompileSettings\AllCommonSettings-Release-32bit.vsprops;..\CompileSettings\PythonMacros.vsprops;$(OPTICKS_CODE_DIR)\application\CompileSettings\boost.vsprops;$(OPTICKS_CODE_DIR)\application\CompileSettings\Xerces-Release.vsprops;..\CompileSettings\Python25.vsprops"
+			UseOfMFC="0"
+			ATLMinimizesCRunTimeLibraryUsage="false"
+			CharacterSet="2"
+			>
+		</Configuration>
+		<Configuration
+			Name="Release|x64"
+			ConfigurationType="2"
+			InheritedPropertySheets="$(OPTICKS_CODE_DIR)\application\CompileSettings\Qt-release.vsprops;$(OPTICKS_CODE_DIR)\application\CompileSettings\PlugInCommonSettings.vsprops;$(OPTICKS_CODE_DIR)\application\CompileSettings\AllCommonSettings-Release-64bit.vsprops;$(OPTICKS_CODE_DIR)\application\CompileSettings\64bitSettings.vsprops;..\CompileSettings\PythonMacros.vsprops;$(OPTICKS_CODE_DIR)\application\CompileSettings\boost.vsprops;$(OPTICKS_CODE_DIR)\application\CompileSettings\Xerces-Release.vsprops;..\CompileSettings\Python25.vsprops"
+			UseOfMFC="0"
+			ATLMinimizesCRunTimeLibraryUsage="false"
+			CharacterSet="2"
+			>
+		</Configuration>
+		<Configuration
+			Name="Debug|Win32"
+			ConfigurationType="2"
+			InheritedPropertySheets="$(OPTICKS_CODE_DIR)\application\CompileSettings\Qt-debug.vsprops;$(OPTICKS_CODE_DIR)\application\CompileSettings\32bitSettings.vsprops;$(OPTICKS_CODE_DIR)\application\CompileSettings\PlugInCommonSettings.vsprops;$(OPTICKS_CODE_DIR)\application\CompileSettings\AllCommonSettings-Debug-32bit.vsprops;..\CompileSettings\PythonMacros.vsprops;$(OPTICKS_CODE_DIR)\application\CompileSettings\boost.vsprops;$(OPTICKS_CODE_DIR)\application\CompileSettings\Xerces-Debug.vsprops;..\CompileSettings\Python25.vsprops"
+			UseOfMFC="0"
+			ATLMinimizesCRunTimeLibraryUsage="false"
+			CharacterSet="2"
+			>
+		</Configuration>
+		<Configuration
+			Name="Debug|x64"
+			ConfigurationType="2"
+			InheritedPropertySheets="$(OPTICKS_CODE_DIR)\application\CompileSettings\Qt-debug.vsprops;$(OPTICKS_CODE_DIR)\application\CompileSettings\PlugInCommonSettings.vsprops;$(OPTICKS_CODE_DIR)\application\CompileSettings\AllCommonSettings-Debug-64bit.vsprops;$(OPTICKS_CODE_DIR)\application\CompileSettings\64bitSettings.vsprops;..\CompileSettings\PythonMacros.vsprops;$(OPTICKS_CODE_DIR)\application\CompileSettings\boost.vsprops;$(OPTICKS_CODE_DIR)\application\CompileSettings\Xerces-Debug.vsprops;..\CompileSettings\Python25.vsprops"
+			UseOfMFC="0"
+			ATLMinimizesCRunTimeLibraryUsage="false"
+			CharacterSet="2"
+			>
+		</Configuration>
+	</Configurations>
+	<References>
+	</References>
+	<Files>
+		<Filter
+			Name="Source Files"
+			Filter="cpp;c;cxx;rc;def;r;odl;idl;hpj;bat"
+			>
+			<File
+				RelativePath=".\ModuleManager.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\OpticksModule.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\PythonEngine.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\PythonEngineOptions.cpp"
+				>
+			</File>
+			<File
+				RelativePath=".\PythonTests.cpp"
+				>
+			</File>
+		</Filter>
+		<Filter
+			Name="Header Files"
+			Filter="h;hpp;hxx;hm;inl"
+			>
+			<File
+				RelativePath=".\OpticksModule.h"
+				>
+			</File>
+			<File
+				RelativePath=".\PythonEngine.h"
+				>
+			</File>
+			<File
+				RelativePath=".\PythonEngineOptions.h"
+				>
+				<FileConfiguration
+					Name="Release|Win32"
+					>
+					<Tool
+						Name="VCCustomBuildTool"
+						Description="Moc&apos;ing $(InputName).h...&quot;"
+						CommandLine="&quot;$(QTBIN)\moc.exe&quot; &quot;$(InputPath)&quot; -o &quot;$(BuildDir)\Moc\$(ProjectName)\moc_$(InputName).cpp&quot;&#x0D;&#x0A;"
+						Outputs="$(BuildDir)\Moc\$(ProjectName)\moc_$(InputName).cpp"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Release|x64"
+					>
+					<Tool
+						Name="VCCustomBuildTool"
+						Description="Moc&apos;ing $(InputName).h...&quot;"
+						CommandLine="&quot;$(QTBIN)\moc.exe&quot; &quot;$(InputPath)&quot; -o &quot;$(BuildDir)\Moc\$(ProjectName)\moc_$(InputName).cpp&quot;&#x0D;&#x0A;"
+						Outputs="$(BuildDir)\Moc\$(ProjectName)\moc_$(InputName).cpp"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|Win32"
+					>
+					<Tool
+						Name="VCCustomBuildTool"
+						Description="Moc&apos;ing $(InputName).h...&quot;"
+						CommandLine="&quot;$(QTBIN)\moc.exe&quot; &quot;$(InputPath)&quot; -o &quot;$(BuildDir)\Moc\$(ProjectName)\moc_$(InputName).cpp&quot;&#x0D;&#x0A;"
+						Outputs="$(BuildDir)\Moc\$(ProjectName)\moc_$(InputName).cpp"
+					/>
+				</FileConfiguration>
+				<FileConfiguration
+					Name="Debug|x64"
+					>
+					<Tool
+						Name="VCCustomBuildTool"
+						Description="Moc&apos;ing $(InputName).h...&quot;"
+						CommandLine="&quot;$(QTBIN)\moc.exe&quot; &quot;$(InputPath)&quot; -o &quot;$(BuildDir)\Moc\$(ProjectName)\moc_$(InputName).cpp&quot;&#x0D;&#x0A;"
+						Outputs="$(BuildDir)\Moc\$(ProjectName)\moc_$(InputName).cpp"
+					/>
+				</FileConfiguration>
+			</File>
+			<File
+				RelativePath=".\PythonTests.h"
+				>
+			</File>
+		</Filter>
+		<Filter
+			Name="moc"
+			>
+			<File
+				RelativePath="$(BuildDir)\Moc\$(ProjectName)\moc_PythonEngineOptions.cpp"
+				>
+			</File>
+		</Filter>
+	</Files>
+	<Globals>
+	</Globals>
+</VisualStudioProject>
