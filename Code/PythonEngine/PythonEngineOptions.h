@@ -18,6 +18,7 @@
 #include <vector>
 
 class FileBrowser;
+class QLineEdit;
 
 class PythonEngineOptions : public LabeledSectionGroup
 {
@@ -26,7 +27,8 @@ class PythonEngineOptions : public LabeledSectionGroup
 public:
    SETTING_PTR(UserFile, PythonEngine, Filename);
    SETTING(InteractiveAvailable, PythonEngine, bool, true);
-
+   SETTING(PythonHome, PythonEngine, std::string, "");
+   
    PythonEngineOptions();
    virtual ~PythonEngineOptions();
 
@@ -88,6 +90,7 @@ public:
 
 private:
    FileBrowser* mpUserConfig;
+   QLineEdit* mpPythonHome;
 };
 
 #endif

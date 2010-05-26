@@ -340,6 +340,11 @@ bool PythonEngine::execute(PlugInArgList* pInArgList, PlugInArgList* pOutArgList
 {
    try
    {
+      std::string pythonHome = PythonEngineOptions::getSettingPythonHome();
+      if (!pythonHome.empty())
+      {
+         Py_SetPythonHome(const_cast<char*>(pythonHome.c_str()));
+      }
       Py_SetProgramName("opticks");
       Py_Initialize();
  
