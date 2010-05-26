@@ -16,6 +16,7 @@
 #include "PlugInRegistration.h"
 #include "PythonEngineOptions.h"
 #include <QtGui/QLabel>
+#include <QtGui/QLineEdit>
 #include <QtGui/QWidget>
 
 REGISTER_PLUGIN(Python, PythonEngineOptions, OptionQWidgetWrapper<PythonEngineOptions>());
@@ -27,20 +28,28 @@ PythonEngineOptions::PythonEngineOptions()
    mpUserConfig = new FileBrowser(pPythonConfigWidget);
    mpUserConfig->setBrowseCaption("Locate the Python user configuration file");
    mpUserConfig->setBrowseFileFilters("Python file (*.py *.pyc *.pyo *.pyd)");
+   
+   QLabel* pPythonHomeLabel = new QLabel("Python Home Location", pPythonConfigWidget);
+   mpPythonHome = new QLineEdit(pPythonConfigWidget);
 
    QGridLayout* pPythonConfigLayout = new QGridLayout(pPythonConfigWidget);
    pPythonConfigLayout->addWidget(pUserConfLabel, 0, 0);
    pPythonConfigLayout->addWidget(mpUserConfig, 0, 1);
+   pPythonConfigLayout->addWidget(pPythonHomeLabel, 1, 0);
+   pPythonConfigLayout->addWidget(mpPythonHome, 1, 1);
    pPythonConfigLayout->setColumnStretch(1, 10);
-   pPythonConfigLayout->setRowStretch(1, 10);
+   pPythonConfigLayout->setRowStretch(2, 10);
 
    LabeledSection* pPythonConfigSection = new LabeledSection(pPythonConfigWidget, "Python Configuration", this);
-   const Filename* pTmpFile = PythonEngineOptions::getSettingUserFile();
-   setUserFile(pTmpFile);
 
    // Initialization
    addSection(pPythonConfigSection, 100);
    addStretch(1);
+
+   const Filename* pTmpFile = PythonEngineOptions::getSettingUserFile();
+   setUserFile(pTmpFile);
+   
+   mpPythonHome->setText(QString::fromStdString(PythonEngineOptions::getSettingPythonHome()));
 }
 
 PythonEngineOptions::~PythonEngineOptions()
@@ -60,4 +69,5 @@ void PythonEngineOptions::applyChanges()
    FactoryResource<Filename> pTmpFile;
    pTmpFile->setFullPathAndName(mpUserConfig->getFilename().toStdString());
    PythonEngineOptions::setSettingUserFile(pTmpFile.get());
+   PythonEngineOptions::setSettingPythonHome(mpPythonHome->text().toStdString());
 }
