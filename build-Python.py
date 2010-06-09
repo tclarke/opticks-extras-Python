@@ -453,19 +453,11 @@ def build_installer(aeb_platforms=[], python_version=None, aeb_output=None,
             bin_dir = join(os.path.abspath("Code"), "Build")
             if plat_parts[0] == "win32":
                 bin_dir = join(bin_dir, "Binaries-%s-%s" % (Windows32bitBuilder.platform, plat_parts[-1]))
-                dep_dir = join(depend_path, "python", "bin", Windows32bitBuilder.platform)
             else:
                 bin_dir = join(bin_dir, "Binaries-%s-%s" % (Windows64bitBuilder.platform, plat_parts[-1]))
-                dep_dir = join(depend_path, "python", "bin", Windows64bitBuilder.platform)
             extension_plugin_path = join(bin_dir, "PlugIns")
             target_plugin_path = join("platform", plat, "PlugIns")
             copy_file_to_zip(extension_plugin_path, target_plugin_path, "PythonEngine%s.dll" % python_version, zfile)
-            target_bin_path = join("platform", plat, "Bin")
-            if python_version != '24':
-               if not(python_version == '26' and plat_parts[0] == "win64"):
-                  copy_file_to_zip(dep_dir, target_bin_path, "python%s.dll" % python_version, zfile)
-                  copy_file_to_zip(dep_dir, target_bin_path, "python%s.zip" % python_version, zfile)
-                  copy_files_in_dir_to_zip(join(dep_dir, "DLLs%s" % python_version), target_bin_path, zfile, [".pyd"], ["_svn", ".svn"])
         elif plat_parts[0] == 'solaris':
             if not(is_windows()):
                 solaris_dir = "."
@@ -475,7 +467,6 @@ def build_installer(aeb_platforms=[], python_version=None, aeb_output=None,
                         "command-line argument to build an AEB using "\
                         "any of the solaris platforms.")
             bin_dir = os.path.join(os.path.abspath(solaris_dir), "Code", "Build", "Binaries-%s-%s" % (SolarisBuilder.platform, plat_parts[-1]))
-            dep_dir = join(depend_path, "python", "bin", SolarisBuilder.platform)
             extension_plugin_path = join(bin_dir, "PlugIns")
             target_plugin_path = join("platform", plat, "PlugIns")
             copy_file_to_zip(extension_plugin_path, target_plugin_path, "PythonEngine%s.so" % python_version, zfile)
