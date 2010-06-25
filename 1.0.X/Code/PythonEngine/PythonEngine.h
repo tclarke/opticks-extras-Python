@@ -15,6 +15,8 @@
 #include "PythonCommon.h"
 #include "WizardShell.h"
 #include <stdexcept>
+#include <string>
+#include <vector>
 
 class PythonEngine : public ExecutableShell
 {
@@ -49,6 +51,8 @@ protected:
    void checkErr();
 
 private:
+   bool processLines(const std::vector<std::string>& lines);
+
    auto_obj mInterpModule;
    auto_obj mStdin;
    auto_obj mStdout;

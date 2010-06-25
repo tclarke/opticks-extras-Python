@@ -19,7 +19,9 @@ aeb_platform_mappings = {'win32':'win32-x86-msvc8.1-release',
                          'solaris':'solaris-sparc-studio12-release',
                          'solaris-debug':'solaris-sparc-studio12-debug'}
 
-python_versions = ['24', '25', '26']
+python_versions = {'24': ['win32', 'win32-debug'],
+                   '25': ['win32', 'win32-debug'],
+                   '26': ['win32', 'win32-debug', 'win64', 'win64-debug']}
 
 def execute_process(args, bufsize=0, executable=None, preexec_fn=None,
       close_fds=None, shell=False, cwd=None, env=None,
@@ -400,7 +402,7 @@ def build_installer(aeb_platforms=[], python_version=None, aeb_output=None,
     manifest["opticks_min_version"] = sdk_version
     manifest["python_version"] = str(python_version)
     incompat_str = ""
-    for the_ver in python_versions:
+    for the_ver in python_versions.iterkeys():
         if the_ver == str(python_version):
             continue
         incompat_str += """<aebl:incompatible>
@@ -451,18 +453,11 @@ def build_installer(aeb_platforms=[], python_version=None, aeb_output=None,
             bin_dir = join(os.path.abspath("Code"), "Build")
             if plat_parts[0] == "win32":
                 bin_dir = join(bin_dir, "Binaries-%s-%s" % (Windows32bitBuilder.platform, plat_parts[-1]))
-                dep_dir = join(depend_path, "python", "bin", Windows32bitBuilder.platform)
             else:
                 bin_dir = join(bin_dir, "Binaries-%s-%s" % (Windows64bitBuilder.platform, plat_parts[-1]))
-                dep_dir = join(depend_path, "python", "bin", Windows64bitBuilder.platform)
             extension_plugin_path = join(bin_dir, "PlugIns")
             target_plugin_path = join("platform", plat, "PlugIns")
             copy_file_to_zip(extension_plugin_path, target_plugin_path, "PythonEngine%s.dll" % python_version, zfile)
-            target_bin_path = join("platform", plat, "Bin")
-            if python_version != '24':
-               copy_file_to_zip(dep_dir, target_bin_path, "python%s.dll" % python_version, zfile)
-               copy_file_to_zip(dep_dir, target_bin_path, "python%s.zip" % python_version, zfile)
-               copy_files_in_dir_to_zip(join(dep_dir, "DLLs%s" % python_version), target_bin_path, zfile, [".pyd"], ["_svn", ".svn"])
         elif plat_parts[0] == 'solaris':
             if not(is_windows()):
                 solaris_dir = "."
@@ -472,7 +467,6 @@ def build_installer(aeb_platforms=[], python_version=None, aeb_output=None,
                         "command-line argument to build an AEB using "\
                         "any of the solaris platforms.")
             bin_dir = os.path.join(os.path.abspath(solaris_dir), "Code", "Build", "Binaries-%s-%s" % (SolarisBuilder.platform, plat_parts[-1]))
-            dep_dir = join(depend_path, "python", "bin", SolarisBuilder.platform)
             extension_plugin_path = join(bin_dir, "PlugIns")
             target_plugin_path = join("platform", plat, "PlugIns")
             copy_file_to_zip(extension_plugin_path, target_plugin_path, "PythonEngine%s.so" % python_version, zfile)
@@ -567,7 +561,7 @@ def main(args):
     options.add_option("--clean", dest="clean", action="store_true")
     options.add_option("--build-extension", dest="build_extension", action="store_true")
     options.add_option("--python-version", dest="python_version",
-        action="store", type="choice", choices=python_versions + ["none"])
+        action="store", type="choice", choices=python_versions.keys() + ["none"])
     options.add_option("--prep", dest="prep", action="store_true")
     options.add_option("--build-installer", dest="build_installer", action="store")
     options.add_option("--aeb-output", dest="aeb_output", action="store")
@@ -639,10 +633,7 @@ def main(args):
                aeb_output = options.aeb_output
             aeb_platforms = []
             if options.build_installer == "all":
-                if options.python_version != "24":
-                    aeb_platforms = aeb_platform_mappings.values()
-                else:
-                    aeb_platforms = [x for x in aeb_platform_mappings.values() if x.startswith("win")]
+                 aeb_platforms = [aeb_platform_mappings[x] for x in python_versions[options.python_version]]
             else:
                 plats = options.build_installer.split(',')
                 for plat in plats:

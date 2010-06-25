@@ -21,6 +21,8 @@
 #include "PythonCommon.h"
 #include <sstream>
 
+#include <boost/tokenizer.hpp>
+
 REGISTER_PLUGIN_BASIC(Python, PythonEngine);
 REGISTER_PLUGIN_BASIC(Python, PythonInterpreter);
 REGISTER_PLUGIN_BASIC(Python, PythonInterpreterWizardItem);
@@ -338,6 +340,11 @@ bool PythonEngine::execute(PlugInArgList* pInArgList, PlugInArgList* pOutArgList
 {
    try
    {
+      std::string pythonHome = PythonEngineOptions::getSettingPythonHome();
+      if (!pythonHome.empty())
+      {
+         Py_SetPythonHome(const_cast<char*>(pythonHome.c_str()));
+      }
       Py_SetProgramName("opticks");
       Py_Initialize();
  
@@ -392,20 +399,35 @@ bool PythonEngine::execute(PlugInArgList* pInArgList, PlugInArgList* pOutArgList
       FileResource userFile(userFileName.c_str(), "rt");
       if (userFile.get() != NULL)
       {
+         typedef boost::tokenizer<boost::char_separator<char> > tokenizer;
+         boost::char_separator<char> newlineSep("\n", "", boost::keep_empty_tokens);
+         std::vector<std::string> lines;
+         const unsigned int BUF_SIZE = 4096;
+         char pBuf[BUF_SIZE];
+         std::string unfinishedLine;
          while (!feof(userFile))
          {
-            char pBuf[4096];
-            size_t readSize = fread(pBuf, sizeof(char), 4096, userFile);
-            if (readSize == 0)
+            size_t readSize = fread(pBuf, sizeof(char), BUF_SIZE, userFile);
+            if (ferror(userFile) || readSize == 0)
             {
-               break;
+               throw PythonError("Invalid user file!");
             }
-            auto_obj cnt(PyObject_CallMethod(mStdin, "write", "sl", pBuf, readSize), true);
-            checkErr();
+            std::string readStr = unfinishedLine + std::string(pBuf, readSize);
+            unfinishedLine.clear();
+            tokenizer tokens(readStr, newlineSep);
+            std::copy(tokens.begin(), tokens.end(), std::back_inserter(lines));
+            if (!(lines.back().empty()))
+            {
+               //doesn't end with \n, we might still have a long line split across read boundary    
+               unfinishedLine = lines.back();
+            }
+            lines.pop_back();
+            processLines(lines);
+            lines.clear();
          }
-         auto_obj useps1(PyObject_CallMethod(mInterpreter, "processEvent", NULL), true);
-         checkErr();
-         if (useps1 == Py_True)
+         tokenizer tokens(unfinishedLine, newlineSep);
+         std::copy(tokens.begin(), tokens.end(), std::back_inserter(lines));
+         if (processLines(lines))
          {
             mPrompt = ">>> ";
          }
@@ -424,6 +446,22 @@ bool PythonEngine::execute(PlugInArgList* pInArgList, PlugInArgList* pOutArgList
    return true;
 }
 
+bool PythonEngine::processLines(const std::vector<std::string>& list)
+{
+   bool retVal = true;
+   for (std::vector<std::string>::const_iterator iter = list.begin();
+        iter != list.end();
+        ++iter)
+   {
+      auto_obj cnt(PyObject_CallMethod(mStdin, "write", "sl", iter->c_str(), iter->size()), true);
+      checkErr();
+      auto_obj useps1(PyObject_CallMethod(mInterpreter, "processEvent", NULL), true);
+      checkErr();
+      retVal = (useps1 == Py_True);
+   }
+   return retVal;
+}
+
 std::string PythonEngine::getPrompt() const
 {
    return mPrompt;
@@ -440,12 +478,12 @@ bool PythonEngine::processCommand(const std::string& command,
    }
    try
    {
-      std::string tmpCommand = command;
-      if (tmpCommand.empty() || tmpCommand[tmpCommand.size() - 1] != '\n')
+      std::string::size_type commandLen = command.size();
+      if (!command.empty() && command[commandLen - 1] == '\n')
       {
-         tmpCommand.append("\n");
+         commandLen--;
       }
-      auto_obj cnt(PyObject_CallMethod(mStdin, "write", "sl", tmpCommand.c_str(), tmpCommand.size()), true);
+      auto_obj cnt(PyObject_CallMethod(mStdin, "write", "sl", command.c_str(), commandLen), true);
       checkErr();
       auto_obj useps1(PyObject_CallMethod(mInterpreter, "processEvent", NULL), true);
       checkErr();
