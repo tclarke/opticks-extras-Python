@@ -14,7 +14,7 @@
       <rdf:Description>
         <aebl:id>opticks@ballforge.net</aebl:id>
         <aebl:minVersion>${opticks_min_version}</aebl:minVersion>
-        <aebl:maxVersion>4.3.*</aebl:maxVersion>
+        <aebl:maxVersion>${opticks_max_version}</aebl:maxVersion>
       </rdf:Description>
     </aebl:targetApplication>
     ${target_platforms}

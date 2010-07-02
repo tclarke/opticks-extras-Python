@@ -347,8 +347,11 @@ class SolarisBuilder(Builder):
     def prep_to_run(self):
         self.prep_to_run_helper([".so"])
 
-def read_version_h():
-    version_path = join("Code", "Include", "PythonVersion.h")
+def read_version_h(path=None):
+    if path is None:
+        version_path = join("Code", "Include", "PythonVersion.h")
+    else:
+        version_path = path
     version_file = open(version_path, "rt")
     version_info = version_file.readlines()
     version_file.close()
@@ -376,8 +379,8 @@ def update_version_h(fields_to_replace):
     version_file.close()
 
 def build_installer(aeb_platforms=[], python_version=None, aeb_output=None,
-                    depend_path=None, sdk_version=None, verbosity=None,
-                    solaris_dir=None):
+                    depend_path=None, verbosity=None,
+                    solaris_dir=None, opticks_code_dir=None):
     if len(aeb_platforms) == 0:
         raise ScriptException("Invalid AEB platform specification. Valid values are: %s." % ", ".join(aeb_platform_mapping.keys()))
     PF_AEBL = "urn:2008:03:aebl-syntax-ns#"
@@ -397,9 +400,16 @@ def build_installer(aeb_platforms=[], python_version=None, aeb_output=None,
     for platform in aeb_platforms:
         aebl_platform_str += "<aebl:targetPlatform>%s</aebl:targetPlatform>\n" % (platform)
     manifest["target_platforms"] = aebl_platform_str
-    if sdk_version is None:
-        raise ScriptException("No SDK version specified!")
-    manifest["opticks_min_version"] = sdk_version
+    opticks_version_info = read_version_h(os.path.abspath(join(opticks_code_dir, "application", "Interfaces", "OpticksVersion.h")))
+    opticks_version = opticks_version_info["OPTICKS_VERSION"][1:-1]
+    parts = opticks_version.split(".")
+    min_version = opticks_version
+    max_version = opticks_version
+    if len(parts) >= 2:
+        if parts[1].isdigit() and len(parts) >= 3:
+            max_version = ".".join(parts[:2]) + ".*"
+    manifest["opticks_min_version"] = min_version
+    manifest["opticks_max_version"] = max_version
     manifest["python_version"] = str(python_version)
     incompat_str = ""
     for the_ver in python_versions.iterkeys():
@@ -565,7 +575,6 @@ def main(args):
     options.add_option("--prep", dest="prep", action="store_true")
     options.add_option("--build-installer", dest="build_installer", action="store")
     options.add_option("--aeb-output", dest="aeb_output", action="store")
-    options.add_option("--sdk-version", dest="sdk_version", action="store")
     options.add_option("--concurrency", dest="concurrency", action="store")
     options.add_option("-q", "--quiet", help="Print fewer messages",
         action="store_const", dest="verbosity", const=0)
@@ -589,7 +598,6 @@ def main(args):
     options.set_defaults(mode="release", clean=False,
         build_extension=False,
         python_version="none",
-        sdk_verson=None,
         prep=False, concurrency=1, verbosity=1,
         update_version_scheme="none")
     options = options.parse_args(args[1:])[0]
@@ -643,8 +651,8 @@ def main(args):
                     else:
                         aeb_platforms.append(plat)
             build_installer(aeb_platforms, options.python_version,
-                aeb_output, opticks_depends, options.sdk_version,
-                options.verbosity, options.solaris_dir)
+                aeb_output, opticks_depends, options.verbosity,
+                options.solaris_dir, opticks_code_dir)
             if options.verbosity > 1:
                 print "Done building installer"
             return 0
