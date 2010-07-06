@@ -13,9 +13,13 @@ def generate(env):
     if not path:
        SCons.Warnings.warn(PythonFound,"Could not detect Python")
     else:
-       env.AppendUnique(CXXFLAGS= ["-I%s/include/%s" % (path,env['PYTHONVERSION']), "-I%s/include/%s/%s" % (path,env['PYTHONVERSION'],env['PLATFORM'])],
-                        LIBPATH=['%s/lib/%s' % (path,env['PLATFORM'])],
-                        LIBS=['python%s.%s' % tuple(env['PYTHONVERSION'])])
+       if env["OS"] == "windows":
+           lib = "python%s" % (env["PYTHONVERSION"])
+       else:
+           lib = 'python%s.%s' % tuple(env['PYTHONVERSION'])
+       env.AppendUnique(CXXFLAGS= ["-I%s/include/%s" % (path,env['PYTHONVERSION']), "-I%s/include/%s/%s" % (path,env['PYTHONVERSION'],env['OPTICKSPLATFORM'])],
+                        LIBPATH=['%s/lib/%s' % (path,env['OPTICKSPLATFORM'])],
+                        LIBS=[lib])
 
 def exists(env):
     return env.Detect('python')

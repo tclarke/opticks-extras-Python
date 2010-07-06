@@ -3,7 +3,7 @@ import glob
 ####
 # import the environment
 ####
-Import('env extra_obj build_dir TOOLPATH')
+Import('env build_dir TOOLPATH')
 env = env.Clone()
 env.Tool('python', toolpath=TOOLPATH)
 
@@ -16,7 +16,7 @@ objs = env.SharedObject(srcs)
 ####
 # build the plug-in library and set up an alias to ease building it later
 ####
-lib = env.SharedLibrary('%s/PythonEngine%s' % (build_dir, env['PYTHONVERSION']),objs+extra_obj)
+lib = env.SharedLibrary('%s/PythonEngine%s' % (build_dir, env['PYTHONVERSION']),objs)
 libInstall = env.Install(env["PLUGINDIR"], lib)
 env.Alias('PythonEngine', libInstall)
 

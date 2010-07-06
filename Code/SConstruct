@@ -4,6 +4,7 @@
 import os
 import os.path
 import subprocess
+import sys
 
 ####
 # Set up the options and environment
@@ -11,32 +12,58 @@ import subprocess
 vars = Variables()
 vars.Add(BoolVariable('RELEASE','False for debug, true for release',0))
 vars.Add(BoolVariable('SDKDEBUG', 'True if linking against a debug mode SDK',0))
-vars.Add(EnumVariable('PYTHONVERSION', 'Version of Python to link against.',"25",allowed_values=("25","26")))
+vars.Add(EnumVariable('PYTHONVERSION', 'Version of Python to link against.',"26",allowed_values=("24","25","26")))
 vars.Add('BUILDDIR','Directory for build files','#/Build')
-vars.Add('CACHEDIR','Directory for cache files. Default is not caching.','')
+default_bits = '64'
+if sys.platform.startswith("win"):
+   default_bits = '32'
+vars.Add(EnumVariable("BITS", '32 for 32-bit build, 64 for 64-bit build',default_bits,['32','64']))
 
 SDKDIR = Dir(os.environ["OPTICKS_CODE_DIR"])
 TOOLPATH = [Dir("%s/application/CompileSettings" % SDKDIR).abspath, Dir("#/CompileSettings").abspath]
-OPTICKSPLATFORM = "%s-%s" % (os.environ['OSTYPE'],os.environ['MACHTYPE'])
+OPTICKSPLATFORM = "unknown"
+TARGET_ARCH = ""
 
-env = Environment(variables=vars,
-                  OPTICKSPLATFORM=OPTICKSPLATFORM,
-                  ENV=os.environ,
-                  tools=["default","qt4","xercesc","boost"],
-                  toolpath=TOOLPATH)
-if env['RELEASE']:
+temp_env = Environment(variables=vars)
+if sys.platform.startswith("win32"):
+   if temp_env["BITS"] == "32":
+      OPTICKSPLATFORM = "Win32"
+      TARGET_ARCH = "x86"
+   else:
+      OPTICKSPLATFORM = "x64"
+      TARGET_ARCH = "x86_64"
+   OS = "windows"
+else:
+   OPTICKSPLATFORM = "%s-%s" % (os.environ['OSTYPE'],os.environ['MACHTYPE'])
+   OS = "solaris"
+
+if temp_env['RELEASE']:
    MODE='release'
 else:
    MODE='debug'
+
+env = Environment(variables=vars,
+                  OPTICKSPLATFORM=OPTICKSPLATFORM,
+                  OS=OS,
+                  MODE=MODE,
+                  ENV=os.environ,
+                  TARGET_ARCH=TARGET_ARCH,
+                  MSVC_VERSION="8.0",
+                  tools=["default", "qt4", "xercesc", "boost", "pthreads"],
+                  toolpath=TOOLPATH)
 if env['SDKDEBUG']:
    SDKMODE='debug'
 else:
    SDKMODE='release'
 BUILDDIR = env.Dir(env["BUILDDIR"]).abspath
-env["PLUGINDIR"] = '%s/Binaries-%s-%s/PlugIns' % (BUILDDIR,OPTICKSPLATFORM,MODE)
 env["BINDIR"] = '%s/Build/Binaries-%s-%s/Bin' % (SDKDIR,OPTICKSPLATFORM,SDKMODE)
+env["PLUGINDIR"] = '%s/Binaries-%s-%s/PlugIns' % (BUILDDIR,OPTICKSPLATFORM,MODE)
 env["LIBDIR"] = '%s/Build/Binaries-%s-%s/Lib' % (SDKDIR,OPTICKSPLATFORM,SDKMODE)
-env["BUILDDIR"] = '%s/%s-%s/PlugIns' % (BUILDDIR,OPTICKSPLATFORM,MODE)
+env["PDBDIR"] = '%s/Binaries-%s-%s/Pdbs' % (BUILDDIR,OPTICKSPLATFORM,MODE)
+if OS == "windows":
+   env["BUILDDIR"] = '%s/%s/%s/PlugIns' % (BUILDDIR,OPTICKSPLATFORM,MODE)
+else:
+   env["BUILDDIR"] = '%s/%s-%s/PlugIns' % (BUILDDIR,OPTICKSPLATFORM,MODE)
 env["COREDIR"] = "%s/application" % SDKDIR
 env["SDKDIR"] = SDKDIR
 
@@ -51,22 +78,48 @@ if OPTICKSPLATFORM == 'solaris-sparc':
    env.Append(CXXFLAGS="-library=stlport4 -m64 -xcode=pic32 -erroff=nonewline",
           SHLINKFLAGS="-library=stlport4 -m64 -xcode=pic32 -mt -L/usr/sfw/lib/sparcv9",
           LIBS=env["QT_MODULES"] + ["PlugInLib","PlugInUtilities","PlugInLib","nsl","dl","GLU","GL","Xm","Xext","X11","m"])
-else:
-   env.Append(CXXFLAGS="-m64 -fpic -pthread -w",
+elif OPTICKSPLATFORM == "linux-x86_64":
+   env.Append(CXXFLAGS="-m64 -fpic -w",
           LINKFLAGS="-melf_x86_64 -Wl,-E",
           LIBS=env["QT_MODULES"] + ["PlugInLib","PlugInUtilities","PlugInLib","dl","GLU","GL","Xext","Xrender","X11","m"])
+elif OS == "windows":
+   if OPTICKSPLATFORM == "Win32":
+      env.AppendUnique(CXXFLAGS=["/arch:SSE"], LINKFLAGS=['/MACHINE:X86'])
+   else:
+      env.AppendUnique(LINKFLAGS=['/MACHINE:X64'])
+   env["PDB"] ="${PDBDIR}/${TARGET.filebase}.pdb"
+   if MODE == "debug" and OPTICKSPLATFORM == "Win32":
+      env.AppendUnique(CXXFLAGS=['/Gy'])
+   env['LINKCOM'] = [env['LINKCOM'], 'mt.exe -nologo -manifest ${TARGET}.manifest -outputresource:$TARGET;1']
+   env['SHLINKCOM'] = [env['SHLINKCOM'], 'mt.exe -nologo -manifest ${TARGET}.manifest -outputresource:$TARGET;2']
+   env.AppendUnique(CXXFLAGS=['/EHsc', '/W3', '/Wp64', '/wd4996', '/wd4267', '/wd4250', '/errorReport:prompt', '/GR'],
+              CPPDEFINES=["WIN32", "NOMINMAX"],
+              LINKFLAGS=['/MAPINFO:EXPORTS', '/MAP', '/DEBUG', '/SUBSYSTEM:WINDOWS', '/LARGEADDRESSAWARE', '/OPT:NOWIN98'],
+              LIBS=["PlugInLib", "PlugInUtilities", "opengl32", "glu32", "advapi32", "shell32"],
+              LIBPATH=[env["LIBDIR"]])
+   if MODE == 'release':
+      env.AppendUnique(CXXFLAGS=['/O2', '/Ob2', '/Oi', '/Ot', '/Oy', '/GF', '/GS-', '/MD'])
+      env.AppendUnique(LIBS=["qtmain", "Qt3Support4", "QtCore4", "QtGui4", "QtOpenGL4", "QtXml4"])
+      env.AppendUnique(LINKFLAGS=['/OPT:NOREF', '/OPT:NOICF', '/INCREMENTAL:NO', '/NODEFAULTLIB:"libc.lib"', '/NODEFAULTLIB:"libcmt.lib"', '/NODEFAULTLIB:"msvcrtd.lib"', '/NODEFAULTLIB:"libcd.lib"', '/NODEFAULTLIB:"libcmtd.lib"'])
+   else:
+      env.AppendUnique(CXXFLAGS=['/Od', '/RTC1', '/RTCc', '/MDd'])
+      env.AppendUnique(CPPDEFINES=["DEBUG"])
+      env.AppendUnique(LIBS=["qtmaind", "Qt3Supportd4", "QtCored4", "QtGuid4", "QtOpenGLd4", "QtXmld4"])
+      env.AppendUnique(LINKFLAGS=['/INCREMENTAL', '/NODEFAULTLIB:"libc.lib"', '/NODEFAULTLIB:"libcmt.lib"', '/NODEFAULTLIB:"msvcrt.lib"', '/NODEFAULTLIB:"libcd.lib"', '/NODEFAULTLIB:"libcmtd.lib"'])
+
 env.BuildDir(env["BUILDDIR"], "#", duplicate=0)
 
-if MODE == 'release':
-   if OPTICKSPLATFORM == "solaris-sparc":
-      env.Append(CXXFLAGS="-xO3")
+if OS != "windows":
+   if MODE == 'release':
+      if OPTICKSPLATFORM == "solaris-sparc":
+         env.Append(CXXFLAGS="-xO3")
+      else:
+         env.Append(CXXFLAGS="-O3")
    else:
-      env.Append(CXXFLAGS="-O3")
-else:
-   env.Append(CXXFLAGS="-g")
-   env.Append(CPPDEFINES=["DEBUG"])
+      env.Append(CXXFLAGS="-g")
+      env.Append(CPPDEFINES=["DEBUG"])
 
-plugins = map(lambda x: x.split('./')[-1].split('/')[0],
+plugins = map(lambda x: os.path.basename(x),
               map(lambda x: x[0],
                   filter(lambda x: 'ModuleManager.cpp' in x[2] or 'modulemanager.cpp' in x[2],os.walk('.'))))
 
@@ -83,22 +136,9 @@ incdirs = [".",
            "$COREDIR/PlugInUtilities/Interfaces",
            "$COREDIR/PlugInUtilities/pthreads-wrapper"]
 env.Append(CPPPATH=incdirs)
-if len(env["CACHEDIR"]) > 0:
-   print "Enable caching to",env["CACHEDIR"]
-   env.CacheDir(env["CACHEDIR"])
-
-###
-# tell SCons this is a shared object
-###
-extra_obj_file = env.File("%s/ModuleShell.os" % env["LIBDIR"])
-class SharedObjectProxy:
-   def __init__(self):
-      self.shared = 1
-extra_obj_file.attributes = SharedObjectProxy()
-extra_obj = [extra_obj_file]
 
 libs = []
-Export('env','MODE','extra_obj','TOOLPATH','OPTICKSPLATFORM', 'SDKDIR')
+Export('env','MODE','TOOLPATH','SDKDIR')
 
 for plugin in plugins:
    if not os.path.isfile('%s/SConscript' % plugin):
