@@ -17,7 +17,9 @@ aeb_platform_mappings = {'win32':'win32-x86-msvc8.1-release',
                          'win32-debug':'win32-x86-msvc8.1-debug',
                          'win64-debug':'win64-x86-msvc8.1-debug',
                          'solaris':'solaris-sparc-studio12-release',
-                         'solaris-debug':'solaris-sparc-studio12-debug'}
+                         'solaris-debug':'solaris-sparc-studio12-debug',
+                         'linux':'linux-x86_64-gcc4-release',
+                         'linux-debug':'linux-x86_64-gcc4-debug'}
 
 python_versions = {'24': ['win32', 'win32-debug'],
                    '25': ['win32', 'win32-debug'],
@@ -347,6 +349,22 @@ class SolarisBuilder(Builder):
     def prep_to_run(self):
         self.prep_to_run_helper([".so"])
 
+
+class LinuxBuilder(SolarisBuilder):
+    platform = "linux-x86_64"
+    def __init__(self, dependencies, opticks_code_dir, build_in_debug,
+                 opticks_build_dir, verbosity):
+        SolarisBuilder.__init__(self, dependencies, opticks_code_dir, build_in_debug,
+            opticks_build_dir, verbosity)
+
+    def get_plugin_dir(self):
+        return os.path.abspath(join(self.opticks_build_dir,
+            "Binaries-%s-%s" % (self.platform, self.mode), "PlugIns"))
+
+    def get_binaries_dir(self):
+        return os.path.abspath(join("Code", "Build",
+            "Binaries-%s-%s" % (self.platform, self.mode)))
+
 def read_version_h(path=None):
     if path is None:
         version_path = join("Code", "Include", "PythonVersion.h")
@@ -468,15 +486,15 @@ def build_installer(aeb_platforms=[], python_version=None, aeb_output=None,
             extension_plugin_path = join(bin_dir, "PlugIns")
             target_plugin_path = join("platform", plat, "PlugIns")
             copy_file_to_zip(extension_plugin_path, target_plugin_path, "PythonEngine%s.dll" % python_version, zfile)
-        elif plat_parts[0] == 'solaris':
-            if not(is_windows()):
-                solaris_dir = "."
-            else:
+        elif plat_parts[0] == 'solaris' or plat_parts[0] == 'linux':
+            prefix_dir = os.path.abspath(".")
+            if is_windows():
                 if not(solaris_dir) or not(os.path.exists(solaris_dir)):
                     raise ScriptException("You must use the --solaris-dir "\
                         "command-line argument to build an AEB using "\
                         "any of the solaris platforms.")
-            bin_dir = os.path.join(os.path.abspath(solaris_dir), "Code", "Build", "Binaries-%s-%s" % (SolarisBuilder.platform, plat_parts[-1]))
+                prefix_dir = os.path.abspath(solaris_dir)
+            bin_dir = os.path.join(prefix_dir, "Code", "Build", "Binaries-%s-%s" % (plat_parts[0], plat_parts[-1]))
             extension_plugin_path = join(bin_dir, "PlugIns")
             target_plugin_path = join("platform", plat, "PlugIns")
             copy_file_to_zip(extension_plugin_path, target_plugin_path, "PythonEngine%s.so" % python_version, zfile)
@@ -663,8 +681,12 @@ def main(args):
             build_in_debug = False
 
         if not is_windows():
-            builder = SolarisBuilder(opticks_depends, opticks_code_dir, build_in_debug,
-                opticks_build_dir, options.verbosity)
+            if sys.platform == 'linux2':
+               builder = LinuxBuilder(opticks_depends, opticks_code_dir, build_in_debug,
+                   opticks_build_dir, options.verbosity)
+            else:
+               builder = SolarisBuilder(opticks_depends, opticks_code_dir, build_in_debug,
+                   opticks_build_dir, options.verbosity)
         else:
             if not os.path.exists(options.visualstudio):
                 raise ScriptException("Visual Studio path is invalid")
