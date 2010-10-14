@@ -14,27 +14,24 @@
 
 namespace OpticksModule
 {
-auto_obj opticksErr;
+   PyObject* get_handle(PyObject*, PyObject*)
+   {
+      auto_obj opaque(PyCObject_FromVoidPtr(
+         reinterpret_cast<void*>(ModuleManager::instance()->getService()), NULL), true);
+      return Py_BuildValue("O", opaque.take());
+   }
 
-PyObject* get_handle(PyObject*, PyObject*)
-{
-   auto_obj opaque(PyCObject_FromVoidPtr(
-      reinterpret_cast<void*>(ModuleManager::instance()->getService()), NULL), true);
-   return Py_BuildValue("O", opaque.take());
-}
+   PyObject* get_python_version(PyObject*, PyObject*)
+   {
+      return PyString_FromString(PYTHON_VERSION_NUMBER);
+   }
 
-PyObject* get_python_version(PyObject*, PyObject*)
-{
-   return PyString_FromString(PYTHON_VERSION_NUMBER);
-}
-
-PyMethodDef opticksMethods[] = {
-   {"handle", get_handle, METH_NOARGS, "Retrieve an opaque handle to the Opticks services object. " \
-                                       "This is used when initializing modules within a .pyd file."},
-   {"pythonVersion", get_python_version, METH_NOARGS, "Retrieve the version of the Python plug-in as a string."},
-   {NULL, NULL, 0, NULL} // sentinel
-};
-
+   PyMethodDef opticksMethods[] = {
+      {"handle", get_handle, METH_NOARGS, "Retrieve an opaque handle to the Opticks services object. " \
+                                          "This is used when initializing modules within a .pyd file."},
+      {"pythonVersion", get_python_version, METH_NOARGS, "Retrieve the version of the Python plug-in as a string."},
+      {NULL, NULL, 0, NULL} // sentinel
+   };
 } // namespace
 
 PyMODINIT_FUNC init_opticks()
@@ -44,7 +41,4 @@ PyMODINIT_FUNC init_opticks()
    {
       return;
    }
-   OpticksModule::opticksErr.reset(PyErr_NewException("opticks.error", NULL, NULL));
-   OpticksModule::opticksErr.take();
-   PyModule_AddObject(pModule, "error", OpticksModule::opticksErr);
 }

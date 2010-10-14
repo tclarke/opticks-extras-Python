@@ -9,6 +9,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PythonEngine25", "PythonEng
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "PythonEngine26", "PythonEngine\PythonEngine26.vcproj", "{D48E70DC-E990-4BB6-A689-B84B88AB2BC8}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "pylint", "pylint\pylint.vcproj", "{04ACBB30-FDDF-455D-9CF1-B2CAF9EF57FB}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug24|Win32 = Debug24|Win32
@@ -81,6 +83,18 @@ Global
 		{D48E70DC-E990-4BB6-A689-B84B88AB2BC8}.Release26|Win32.Build.0 = Release|Win32
 		{D48E70DC-E990-4BB6-A689-B84B88AB2BC8}.Release26|x64.ActiveCfg = Release|x64
 		{D48E70DC-E990-4BB6-A689-B84B88AB2BC8}.Release26|x64.Build.0 = Release|x64
+		{04ACBB30-FDDF-455D-9CF1-B2CAF9EF57FB}.Debug24|Win32.ActiveCfg = Debug|Win32
+		{04ACBB30-FDDF-455D-9CF1-B2CAF9EF57FB}.Debug24|x64.ActiveCfg = Debug|Win32
+		{04ACBB30-FDDF-455D-9CF1-B2CAF9EF57FB}.Debug25|Win32.ActiveCfg = Debug|Win32
+		{04ACBB30-FDDF-455D-9CF1-B2CAF9EF57FB}.Debug25|x64.ActiveCfg = Debug|Win32
+		{04ACBB30-FDDF-455D-9CF1-B2CAF9EF57FB}.Debug26|Win32.ActiveCfg = Debug|Win32
+		{04ACBB30-FDDF-455D-9CF1-B2CAF9EF57FB}.Debug26|x64.ActiveCfg = Debug|Win32
+		{04ACBB30-FDDF-455D-9CF1-B2CAF9EF57FB}.Release24|Win32.ActiveCfg = Release|Win32
+		{04ACBB30-FDDF-455D-9CF1-B2CAF9EF57FB}.Release24|x64.ActiveCfg = Release|Win32
+		{04ACBB30-FDDF-455D-9CF1-B2CAF9EF57FB}.Release25|Win32.ActiveCfg = Release|Win32
+		{04ACBB30-FDDF-455D-9CF1-B2CAF9EF57FB}.Release25|x64.ActiveCfg = Release|Win32
+		{04ACBB30-FDDF-455D-9CF1-B2CAF9EF57FB}.Release26|Win32.ActiveCfg = Release|Win32
+		{04ACBB30-FDDF-455D-9CF1-B2CAF9EF57FB}.Release26|x64.ActiveCfg = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
