@@ -178,6 +178,17 @@ class Builder:
 
         if self.verbosity > 1:
             print "Building Python plug-ins..."
+            
+        if not self.opticks_code_dir:
+            raise ScriptException("Opticks code dir argument must be provided")
+        if not os.path.exists(self.opticks_code_dir):
+            raise ScriptException("Opticks code dir is invalid")
+
+        if not self.depend_path:
+            raise ScriptException("Dependencies argument must be provided")
+        if not os.path.exists(self.depend_path):
+            raise ScriptException("Dependencies path is invalid")
+        
         buildenv = os.environ
         buildenv["OPTICKSDEPENDENCIES"] = self.depend_path
         buildenv["OPTICKS_CODE_DIR"] = self.opticks_code_dir
@@ -251,6 +262,35 @@ class Builder:
             os.makedirs(app_setting_dir)
             if self.verbosity > 1:
                 print "Done creating ApplicationUserSettings folder"
+
+    def run_pylint(self):
+        pylint_command = "pylint"
+        if is_windows():
+            pylint_command += ".bat"
+        pylint_args = [pylint_command]
+        pylint_args.append("--rcfile=%s" % os.path.abspath(join("Code", "pylint", "pylint.txt")))
+        pylint_args.append("placeholder-filename")
+
+        site_packages = os.path.abspath(join("Release\SupportFiles\site-packages")) 
+        if is_windows():
+            root = os.path.splitdrive(site_packages)[0] + os.sep        
+        else:
+            root = site_packages
+        for dirpath, dirnames, filenames in os.walk(site_packages):
+            try:
+                dirnames.remove("_svn")
+            except Exception:
+                pass
+            try:
+                dirnames.remove(".svn")
+            except Exception:
+                pass
+            for the_file in filenames:
+                if not the_file.endswith(".py"):
+                    continue
+                pylint_args.pop()
+                pylint_args.append(os.path.abspath(join(dirpath, the_file)))
+                execute_process(pylint_args, cwd=root)
 
 class WindowsBuilder(Builder):
     def __init__(self, dependencies, opticks_code_dir, build_in_debug,
@@ -414,6 +454,16 @@ def build_installer(aeb_platforms=[], python_version=None, aeb_output=None,
         raise ScriptException("Invalid AEB platform specification. Valid values are: %s." % ", ".join(aeb_platform_mapping.keys()))
     PF_AEBL = "urn:2008:03:aebl-syntax-ns#"
     PF_OPTICKS = "urn:2008:03:opticks-aebl-extension-ns#"
+
+    if not opticks_code_dir:
+        raise ScriptException("Opticks code dir argument must be provided")
+    if not os.path.exists(opticks_code_dir):
+        raise ScriptException("Opticks code dir is invalid")
+
+    if not depend_path:
+        raise ScriptException("Dependencies argument must be provided")
+    if not os.path.exists(depend_path):
+        raise ScriptException("Dependencies path is invalid")
 
     if verbosity > 1:
         print "Loading metadata template..."
@@ -609,6 +659,7 @@ def main(args):
         action="store", type="choice", choices=python_versions.keys() + ["none"])
     options.add_option("--prep", dest="prep", action="store_true")
     options.add_option("--build-installer", dest="build_installer", action="store")
+    options.add_option("--run-pylint", dest="run_pylint", action="store_true")
     options.add_option("--aeb-output", dest="aeb_output", action="store")
     options.add_option("--concurrency", dest="concurrency", action="store")
     options.add_option("-q", "--quiet", help="Print fewer messages",
@@ -634,7 +685,8 @@ def main(args):
         build_extension=False,
         python_version="none",
         prep=False, concurrency=1, verbosity=1,
-        update_version_scheme="none")
+        update_version_scheme="none",
+        run_pylint=False)
     options = options.parse_args(args[1:])[0]
     if not(is_windows()):
         options.solaris_dir = None
@@ -647,28 +699,14 @@ def main(args):
             #allow the -d command-line option to override
             #environment variable
             opticks_depends = options.dependencies
-        if not opticks_depends:
-            #didn't use -d command-line option, nor an environment variable
-            #so consider that an error
-            raise ScriptException("Dependencies argument must be provided")
-        if not os.path.exists(opticks_depends):
-            raise ScriptException("Dependencies path is invalid")
 
+        opticks_build_dir = None
         opticks_code_dir = os.environ.get("OPTICKS_CODE_DIR", None)
         if options.opticks_code_dir:
             opticks_code_dir = options.opticks_code_dir
-        if not opticks_code_dir:
-            raise ScriptException("Opticks code dir argument must be provided")
-        if not os.path.exists(opticks_code_dir):
-            raise ScriptException("Opticks code dir is invalid")
-
-        opticks_build_dir = join(opticks_code_dir, "Build")
-        if not opticks_build_dir:
-            raise ScriptException("Opticks build directory argument "\
-                "must be provided")
-        if not os.path.exists(opticks_build_dir):
-            raise ScriptException("Opticks build directory path is invalid")
-
+        if opticks_code_dir:
+            opticks_build_dir = join(opticks_code_dir, "Build")
+                
         if options.build_installer:
             if options.verbosity > 1:
                 print "Building AEB installation extension..."
@@ -728,6 +766,13 @@ def main(args):
             builder.prep_to_run()
             if options.verbosity > 1:
                 print "Done prepping to run"
+
+        if options.run_pylint:
+            if options.verbosity > 1:
+                print "Running pylint..."
+            builder.run_pylint()
+            if options.verbosity > 1:
+                print "Done running pylint"
 
     except Exception, e:
         print "--------------------------"

@@ -455,7 +455,7 @@ bool PythonEngine::processLines(const std::vector<std::string>& list)
    {
       auto_obj cnt(PyObject_CallMethod(mStdin, "write", "sl", iter->c_str(), iter->size()), true);
       checkErr();
-      auto_obj useps1(PyObject_CallMethod(mInterpreter, "processEvent", NULL), true);
+      auto_obj useps1(PyObject_CallMethod(mInterpreter, "process_event", NULL), true);
       checkErr();
       retVal = (useps1 == Py_True);
    }
@@ -485,7 +485,7 @@ bool PythonEngine::processCommand(const std::string& command,
       }
       auto_obj cnt(PyObject_CallMethod(mStdin, "write", "sl", command.c_str(), commandLen), true);
       checkErr();
-      auto_obj useps1(PyObject_CallMethod(mInterpreter, "processEvent", NULL), true);
+      auto_obj useps1(PyObject_CallMethod(mInterpreter, "process_event", NULL), true);
       checkErr();
       if (useps1 == Py_True)
       {
