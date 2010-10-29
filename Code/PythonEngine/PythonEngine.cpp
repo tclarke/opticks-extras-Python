@@ -8,7 +8,9 @@
  */
 
 #include "AppVerify.h"
+#include "AttachmentPtr.h"
 #include "FileResource.h"
+#include "InterpreterUtilities.h"
 #include "MessageLogResource.h"
 #include "OpticksModule.h"
 #include "PythonEngine.h"
@@ -23,23 +25,402 @@
 
 #include <boost/tokenizer.hpp>
 
-REGISTER_PLUGIN_BASIC(Python, PythonEngine);
 REGISTER_PLUGIN_BASIC(Python, PythonInterpreter);
 REGISTER_PLUGIN_BASIC(Python, PythonInterpreterWizardItem);
 
-PythonEngine::PythonEngine() : mPrompt(">>> ")
+namespace
 {
-   setName(PlugInName());
-   setDescription("Python execution engine");
-   setDescriptorId("{d47d3e19-5b7f-49aa-b02a-c8fbb1255591}");
+   PythonEngine* spEngine = NULL;
+   void transmitOutput(char* pText, int32_t length, int32_t error)
+   {
+      if (spEngine == NULL)
+      {
+         return;
+      }
+      std::string message(pText, length);
+      if (error)
+      {
+         spEngine->sendError(message);
+      }
+      else
+      {
+         spEngine->sendOutput(message);
+      }
+   }
+};
+
+PythonEngine::PythonEngine()
+   : mPrompt(">>> "), mGlobalOutputShown(false), mPythonRunning(false),
+   mAttemptedOneStart(false), mRunningScopedCommand(false)
+{
+   spEngine = this;
+}
+
+PythonEngine::~PythonEngine()
+{
+   spEngine = NULL;
+   if (mRunModule.get() != NULL)
+   {
+      mInterpModule.reset(NULL);
+      mStdin.reset(NULL);
+      mInterpreter.reset(NULL);
+      mGlobals.reset(NULL);
+      mRunModule.reset(NULL);
+      Py_Finalize();
+   }
+}
+
+bool PythonEngine::isPythonRunning() const
+{
+   return mPythonRunning;
+}
+
+bool PythonEngine::startPython()
+{
+   if (mPythonRunning)
+   {
+      return true;
+   }
+   if (mAttemptedOneStart)
+   {
+      return false;
+   }
+   mAttemptedOneStart = true;
+   mStartupMessage.clear();
+   try
+   {
+      std::string pythonHome = PythonEngineOptions::getSettingPythonHome();
+      if (!pythonHome.empty())
+      {
+         Py_SetPythonHome(const_cast<char*>(pythonHome.c_str()));
+      }
+      Py_SetProgramName("opticks");
+      Py_Initialize();
+
+      mRunModule.reset(PyModule_New("__opticks_script__"), true);
+      checkErr();
+      PyModule_AddStringConstant(mRunModule, "__file__", "Scripting Window running in Opticks");
+      checkErr();
+      mGlobals.reset(PyModule_GetDict(mRunModule), true);
+      checkErr();
+      PyDict_SetItemString(mGlobals, "__builtins__", PyEval_GetBuiltins());
+      checkErr();
+
+      init_opticks();
+      checkErr();
+      auto_obj sysPath(PySys_GetObject("path"));
+      std::string newPath =
+         Service<ConfigurationSettings>()->getSettingSupportFilesPath()->getFullPathAndName() + "/site-packages";
+      auto_obj newPathItem(PyString_FromString(newPath.c_str()), true);
+      VERIFYNR(PyList_Append(sysPath, newPathItem) == 0);
+      VERIFYNR(PySys_SetObject("path", sysPath) == 0);
+      mInterpModule.reset(PyImport_ImportModule("interpreter"), true);
+      checkErr();
+      auto_obj interpDict(PyModule_GetDict(mInterpModule));
+      checkErr();
+
+      auto_obj sendOutputFuncPointer(PyCObject_FromVoidPtr(reinterpret_cast<void*>(&transmitOutput), NULL), true);
+      checkErr();
+      PyObject_SetAttrString(mInterpModule, "_send_output_c_func_pointer", sendOutputFuncPointer);
+      checkErr();
+      auto_obj strConnectIo(PyDict_GetItemString(interpDict, "connect_io"));
+      checkErr();
+      auto_obj strConnectIoRet(PyObject_CallObject(strConnectIo, NULL), true);
+      checkErr();
+
+      auto_obj strBufStream(PyDict_GetItemString(interpDict, "StrBufStream"));
+      checkErr();
+      mStdin.reset(PyObject_CallObject(strBufStream, NULL), true);
+      checkErr();
+      VERIFYNR(mStdin.get());
+
+      auto_obj pythonInteractiveInterpreter(PyDict_GetItemString(interpDict, "PythonInteractiveInterpreter"));
+      mInterpreter.reset(PyObject_CallObject(pythonInteractiveInterpreter, Py_BuildValue("(O)", mGlobals.get())), true);
+      checkErr();
+
+      PyObject_SetAttrString(mInterpreter, "stdin", mStdin);
+      checkErr();
+      mStartupMessage = "Python ";
+      mStartupMessage += Py_GetVersion();
+      mStartupMessage += " on ";
+      mStartupMessage += Py_GetPlatform();
+      mStartupMessage += "\nType \"help(opticks)\" for release notes.\n";
+      auto_obj builtinModule(PyImport_Import(PyString_FromString("__builtin__")), true);
+      checkErr();
+      auto_obj opticksModule(PyImport_Import(PyString_FromString("opticks")), true);
+      checkErr();
+      PyModule_AddObject(builtinModule, "opticks", opticksModule.release());
+      checkErr();
+   }
+   catch(const PythonError& err)
+   {
+      mStartupMessage = "Error initializing python engine.\n" + std::string(err.what());
+      MessageResource msg("Error initializing python engine.", "python", "{d32b0337-63f2-43fc-8d82-0387a9b5d254}");
+      msg->addProperty("Err", err.what());
+      return false;
+   }
+
+   std::string userFileName;
+   std::string errorMsg;
+   try
+   {
+      mGatheredOutput.clear();
+      AttachmentPtr<PythonEngine> attachments(this);
+      attachments.addSignal(SIGNAL_NAME(Interpreter, OutputText), Slot(this, &PythonEngine::gatherOutput));
+      attachments.addSignal(SIGNAL_NAME(Interpreter, ErrorText), Slot(this, &PythonEngine::gatherOutput));
+      const Filename* pUserFile = PythonEngineOptions::getSettingUserFile();
+      userFileName = (pUserFile == NULL) ? "" : pUserFile->getFullPathAndName();
+      FileResource userFile(userFileName.c_str(), "r");
+      if (userFile.get() != NULL)
+      {
+         const unsigned int BUF_SIZE = 4096;
+         char pBuf[BUF_SIZE];
+         std::string allFileContents;
+         while (!feof(userFile))
+         {
+            size_t readSize = fread(pBuf, sizeof(char), BUF_SIZE, userFile);
+            if (ferror(userFile) || readSize == 0)
+            {
+               throw PythonError("Invalid user file!");
+            }
+            allFileContents = allFileContents + std::string(pBuf, readSize);
+         }
+         PyRun_String(allFileContents.c_str(), Py_file_input, mGlobals.get(), mGlobals.get());
+         checkErr();
+      }
+   }
+   catch(const PythonError& err)
+   {
+      errorMsg = "Error executing user python file at: " + userFileName + ".\n" + std::string(err.what());
+   }
+   if (!mGatheredOutput.empty())
+   {
+      mStartupMessage += mGatheredOutput;
+      mGatheredOutput.clear();
+   }
+   if (!errorMsg.empty())
+   {
+      mStartupMessage += errorMsg;
+   }
+
+   if (!PythonEngineOptions::getSettingInteractiveAvailable())
+   {
+      mStartupMessage = "The ability to type Python commands into the Scripting Window "
+         "has been disabled by another extension.\n" + mStartupMessage;
+   }
+
+   mPythonRunning = true;
+   return mPythonRunning;
+}
+
+std::string PythonEngine::getStartupMessage() const
+{
+   return mStartupMessage;
+}
+
+bool PythonEngine::executeCommand(const std::string& command)
+{
+   if (!mPythonRunning)
+   {
+      return false;
+   }
+   bool retVal = true;
+   mRunningScopedCommand = false;
+   try
+   {
+      std::string::size_type commandLen = command.size();
+      if (!command.empty() && command[commandLen - 1] == '\n')
+      {
+         commandLen--;
+      }
+      auto_obj cnt(PyObject_CallMethod(mStdin, "write", "sl", command.c_str(), commandLen), true);
+      checkErr();
+      auto_obj useps1(PyObject_CallMethod(mInterpreter, "process_event", NULL), true);
+      checkErr();
+      if (useps1 == Py_True)
+      {
+         mPrompt = ">>> ";
+      }
+      else
+      {
+         mPrompt = "... ";
+      }
+   }
+   catch(const PythonError& err)
+   {
+      sendError(err.what());
+      retVal = false;
+   }
+
+   mRunningScopedCommand = false;
+   return retVal;
+}
+
+bool PythonEngine::executeScopedCommand(const std::string& command, const Slot& output,
+                                        const Slot& error, Progress* pProgress)
+{
+   if (!mPythonRunning)
+   {
+      return false;
+   }
+   bool retVal = true;
+   mRunningScopedCommand = true;
+   attach(SIGNAL_NAME(PythonEngine, ScopedOutputText), output);
+   attach(SIGNAL_NAME(PythonEngine, ScopedErrorText), error);
+   try
+   {
+      auto_obj scopedDict(PyDict_New(), true);
+      PyRun_String(command.c_str(), Py_file_input, mGlobals.get(), scopedDict.get());
+      checkErr();
+   }
+   catch(const PythonError& err)
+   {
+      sendError(err.what());
+      retVal = false;
+   }
+   detach(SIGNAL_NAME(PythonEngine, ScopedErrorText), error);
+   detach(SIGNAL_NAME(PythonEngine, ScopedOutputText), output);
+   mRunningScopedCommand = false;
+   return retVal;
+}
+
+void PythonEngine::gatherOutput(Subject& subject, const std::string& signal, const boost::any& data)
+{
+   std::string text = boost::any_cast<std::string>(data);
+   mGatheredOutput += text;
+}
+
+void PythonEngine::sendOutput(const std::string& text)
+{
+   sendOutput(text, mRunningScopedCommand);
+}
+
+void PythonEngine::sendOutput(const std::string& text, bool scoped)
+{
+   if (text.empty())
+   {
+      return;
+   }
+   if (scoped)
+   {
+      notify(SIGNAL_NAME(PythonEngine, ScopedOutputText), text);
+   }
+   if (!scoped || mGlobalOutputShown)
+   {
+      notify(SIGNAL_NAME(Interpreter, OutputText), text);
+   }
+}
+
+void PythonEngine::sendError(const std::string& text)
+{
+   sendError(text, mRunningScopedCommand);
+}
+
+void PythonEngine::sendError(const std::string& text, bool scoped)
+{
+   if (text.empty())
+   {
+      return;
+   }
+   if (scoped)
+   {
+      notify(SIGNAL_NAME(PythonEngine, ScopedErrorText), text);
+   }
+   if (!scoped || mGlobalOutputShown)
+   {
+      notify(SIGNAL_NAME(Interpreter, ErrorText), text);
+   }
+}
+
+bool PythonEngine::isGlobalOutputShown() const
+{
+   return mGlobalOutputShown;
+}
+
+void PythonEngine::showGlobalOutput(bool newValue)
+{
+   mGlobalOutputShown = newValue;
+}
+
+std::string PythonEngine::getPrompt() const
+{
+   return mPrompt;
+}
+
+void PythonEngine::checkErr()
+{
+   if (PyErr_Occurred() != NULL)
+   {
+      PyObject* pException = NULL;
+      PyObject* pVal = NULL;
+      PyObject* pTb = NULL;
+      PyErr_Fetch(&pException, &pVal, &pTb);
+      PyErr_NormalizeException(&pException, &pVal, &pTb);
+      PyErr_Clear();
+      std::string errStr;
+      auto_obj traceback(PyImport_ImportModule("traceback"), true);
+      if (PyErr_Occurred() != NULL)
+      {
+         PyErr_Clear();
+         auto_obj msg(PyObject_GetAttrString(pVal, "message"), true);
+         errStr = "Unable to import traceback module.\n" + 
+            std::string(PyObject_REPR(pException)) + ": " +
+            std::string(PyObject_REPR(msg)) + "\npath=" +
+            std::string(PyObject_REPR(PySys_GetObject("path"))) + "\n";
+      }
+      else
+      {
+         auto_obj tracebackDict(PyModule_GetDict(traceback));
+         if (pTb != NULL)
+         {
+            auto_obj format_tb(PyDict_GetItemString(tracebackDict, "format_tb"));
+            auto_obj tb(PyObject_CallFunction(format_tb, "O", pTb), true);
+            auto_obj tempString2(PyString_FromString(""), true);
+            auto_obj completeString2(PyObject_CallMethod(tempString2, "join", "(O)", tb), true);
+            errStr = std::string(PyString_AsString(completeString2));
+            if (!errStr.empty())
+            {
+               errStr = "Traceback (most recent call last):\n" + errStr;
+            }
+         }
+         auto_obj format_exception_only(PyDict_GetItemString(tracebackDict, "format_exception_only"));
+         auto_obj excList(PyObject_CallFunction(format_exception_only, "OO", pException, pVal), true);
+         auto_obj tempString(PyString_FromString(""), true);
+         auto_obj completeString(PyObject_CallMethod(tempString, "join", "(O)", excList), true);
+         errStr += std::string(PyString_AsString(completeString));
+      }
+      throw PythonError(errStr);
+   }
+}
+
+const std::string& PythonEngine::getObjectType() const
+{
+   static std::string sType("PythonEngine");
+   return sType;
+}
+
+bool PythonEngine::isKindOf(const std::string& className) const
+{
+   if (className == getObjectType())
+   {
+      return true;
+   }
+
+   return SubjectImp::isKindOf(className);
+}
+
+PythonInterpreter::PythonInterpreter()
+   : mpEngine(new PythonEngine())
+{
+   setName("Python");
+   setDescription("Provides command line utilities to execute Python commands.");
+   setDescriptorId("{171f067d-1927-4cf0-b505-f3d6bcc09493}");
    setCopyright(PYTHON_COPYRIGHT);
    setVersion(PYTHON_VERSION_NUMBER);
    setProductionStatus(PYTHON_IS_PRODUCTION_RELEASE);
-   setType("Manager");
-   executeOnStartup(true);
-   destroyAfterExecute(false);
    allowMultipleInstances(false);
    setWizardSupported(false);
+   setInteractiveEnabled(PythonEngineOptions::getSettingInteractiveAvailable());
    addDependencyCopyright("Python", "<pre>A. HISTORY OF THE SOFTWARE\n"
 "==========================\n"
 "\n"
@@ -311,351 +692,63 @@ PythonEngine::PythonEngine() : mPrompt(">>> ")
 "OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.</pre>");
 }
 
-PythonEngine::~PythonEngine()
-{
-   if (mInterpreter.get() != NULL)
-   {
-      mInterpModule.reset(NULL);
-      mStdin.reset(NULL);
-      mStdout.reset(NULL);
-      mStderr.reset(NULL);
-      mInterpreter.reset(NULL);
-      Py_Finalize();
-   }
-}
-
-bool PythonEngine::getInputSpecification(PlugInArgList*& pArgList)
-{
-   pArgList = NULL;
-   return true;
-}
-
-bool PythonEngine::getOutputSpecification(PlugInArgList*& pArgList)
-{
-   pArgList = NULL;
-   return true;
-}
-
-bool PythonEngine::execute(PlugInArgList* pInArgList, PlugInArgList* pOutArgList)
-{
-   try
-   {
-      std::string pythonHome = PythonEngineOptions::getSettingPythonHome();
-      if (!pythonHome.empty())
-      {
-         Py_SetPythonHome(const_cast<char*>(pythonHome.c_str()));
-      }
-      Py_SetProgramName("opticks");
-      Py_Initialize();
- 
-      init_opticks();
-      checkErr();
-      auto_obj sysPath(PySys_GetObject("path"));
-      std::string newPath =
-         Service<ConfigurationSettings>()->getSettingSupportFilesPath()->getFullPathAndName() + "/site-packages";
-      auto_obj newPathItem(PyString_FromString(newPath.c_str()), true);
-      VERIFYNR(PyList_Append(sysPath, newPathItem) == 0);
-      VERIFYNR(PySys_SetObject("path", sysPath) == 0);
-      mInterpModule.reset(PyImport_ImportModule("interpreter"), true);
-      checkErr();
-
-      auto_obj interpDict(PyModule_GetDict(mInterpModule));
-      auto_obj strBufStream(PyDict_GetItemString(interpDict, "StrBufStream"));
-      checkErr();
-      mStdin.reset(PyObject_CallObject(strBufStream, NULL), true);
-      checkErr();
-      VERIFYNR(mStdin.get());
-      mStdout.reset(PyObject_CallObject(strBufStream, NULL), true);
-      checkErr();
-      VERIFYNR(mStdout.get());
-      mStderr.reset(PyObject_CallObject(strBufStream, NULL), true);
-      checkErr();
-      VERIFYNR(mStderr.get());
-
-      auto_obj pythonInteractiveInterpreter(PyDict_GetItemString(interpDict, "PythonInteractiveInterpreter"));
-      mInterpreter.reset(PyObject_CallObject(pythonInteractiveInterpreter, NULL), true);
-      checkErr();
-
-      PyObject_SetAttrString(mInterpreter, "stdin", mStdin);
-      PyObject_SetAttrString(mInterpreter, "stdout", mStdout);
-      PyObject_SetAttrString(mInterpreter, "stderr", mStderr);
-      checkErr();
-      std::string welcomeBanner = "Python ";
-      welcomeBanner += Py_GetVersion();
-      welcomeBanner += " on ";
-      welcomeBanner += Py_GetPlatform();
-      welcomeBanner += "\nType \"help(opticks)\" for release notes.\n\n";
-      auto_obj cnt(PyObject_CallMethod(mStdout, "write", "sl", welcomeBanner.c_str(), welcomeBanner.size()), true);
-      checkErr();
-      auto_obj builtinModule(PyImport_Import(PyString_FromString("__builtin__")), true);
-      checkErr();
-      auto_obj opticksModule(PyImport_Import(PyString_FromString("opticks")), true);
-      checkErr();
-      PyModule_AddObject(builtinModule, "opticks", opticksModule.release());
-      checkErr();
-
-      const Filename* pUserFile = PythonEngineOptions::getSettingUserFile();
-      std::string userFileName = (pUserFile == NULL) ? "" : pUserFile->getFullPathAndName();
-      FileResource userFile(userFileName.c_str(), "rt");
-      if (userFile.get() != NULL)
-      {
-         typedef boost::tokenizer<boost::char_separator<char> > tokenizer;
-         boost::char_separator<char> newlineSep("\n", "", boost::keep_empty_tokens);
-         std::vector<std::string> lines;
-         const unsigned int BUF_SIZE = 4096;
-         char pBuf[BUF_SIZE];
-         std::string unfinishedLine;
-         while (!feof(userFile))
-         {
-            size_t readSize = fread(pBuf, sizeof(char), BUF_SIZE, userFile);
-            if (ferror(userFile) || readSize == 0)
-            {
-               throw PythonError("Invalid user file!");
-            }
-            std::string readStr = unfinishedLine + std::string(pBuf, readSize);
-            unfinishedLine.clear();
-            tokenizer tokens(readStr, newlineSep);
-            std::copy(tokens.begin(), tokens.end(), std::back_inserter(lines));
-            if (!(lines.back().empty()))
-            {
-               //doesn't end with \n, we might still have a long line split across read boundary    
-               unfinishedLine = lines.back();
-            }
-            lines.pop_back();
-            processLines(lines);
-            lines.clear();
-         }
-         tokenizer tokens(unfinishedLine, newlineSep);
-         std::copy(tokens.begin(), tokens.end(), std::back_inserter(lines));
-         if (processLines(lines))
-         {
-            mPrompt = ">>> ";
-         }
-         else
-         {
-            throw PythonError("Invalid user file!");
-         }
-      }
-   }
-   catch(const PythonError& err)
-   {
-      MessageResource msg("Error initializing python engine.", "python", "{d32b0337-63f2-43fc-8d82-0387a9b5d254}");
-      msg->addProperty("Err", err.what());
-      return false;
-   }
-   return true;
-}
-
-bool PythonEngine::processLines(const std::vector<std::string>& list)
-{
-   bool retVal = true;
-   for (std::vector<std::string>::const_iterator iter = list.begin();
-        iter != list.end();
-        ++iter)
-   {
-      auto_obj cnt(PyObject_CallMethod(mStdin, "write", "sl", iter->c_str(), iter->size()), true);
-      checkErr();
-      auto_obj useps1(PyObject_CallMethod(mInterpreter, "process_event", NULL), true);
-      checkErr();
-      retVal = (useps1 == Py_True);
-   }
-   return retVal;
-}
-
-std::string PythonEngine::getPrompt() const
-{
-   return mPrompt;
-}
-
-bool PythonEngine::processCommand(const std::string& command,
-                                  std::string& returnText,
-                                  std::string& errorText,
-                                  Progress* pProgress)
-{
-   if (mInterpreter.get() == NULL)
-   {
-      return false;
-   }
-   try
-   {
-      std::string::size_type commandLen = command.size();
-      if (!command.empty() && command[commandLen - 1] == '\n')
-      {
-         commandLen--;
-      }
-      auto_obj cnt(PyObject_CallMethod(mStdin, "write", "sl", command.c_str(), commandLen), true);
-      checkErr();
-      auto_obj useps1(PyObject_CallMethod(mInterpreter, "process_event", NULL), true);
-      checkErr();
-      if (useps1 == Py_True)
-      {
-         mPrompt = ">>> ";
-      }
-      else
-      {
-         mPrompt = "... ";
-      }
-
-      auto_obj stderrAvailable(PyObject_CallMethod(mStderr, "available", NULL), true);
-      checkErr();
-      long stderrCount = PyInt_AsLong(stderrAvailable);
-      if (stderrCount > 0)
-      {
-         auto_obj stderrStr(PyObject_CallMethod(mStderr, "read", "O", stderrAvailable.get()), true);
-         checkErr();
-         errorText = PyString_AsString(stderrStr);
-      }
-      auto_obj stdoutAvailable(PyObject_CallMethod(mStdout, "available", NULL), true);
-      checkErr();
-      long stdoutCount = PyInt_AsLong(stdoutAvailable);
-      if (stdoutCount > 0)
-      {
-         auto_obj stdoutStr(PyObject_CallMethod(mStdout, "read", "O", stdoutAvailable.get()), true);
-         checkErr();
-         returnText = PyString_AsString(stdoutStr);
-      }
-   }
-   catch(const PythonError& err)
-   {
-      errorText = err.what();
-      return false;
-   }
-   return true;
-}
-
-void PythonEngine::checkErr()
-{
-   if (PyErr_Occurred() != NULL)
-   {
-      PyObject* pException = NULL;
-      PyObject* pVal = NULL;
-      PyObject* pTb = NULL;
-      PyErr_Fetch(&pException, &pVal, &pTb);
-      PyErr_NormalizeException(&pException, &pVal, &pTb);
-      PyErr_Clear();
-      std::stringstream errStr;
-      auto_obj traceback(PyImport_ImportModule("traceback"), true);
-      if (PyErr_Occurred() != NULL)
-      {
-         PyErr_Clear();
-         auto_obj msg(PyObject_GetAttrString(pVal, "message"), true);
-         errStr << "Unable to import traceback module.\n"
-            << PyObject_REPR(pException) << ": "
-            << PyObject_REPR(msg) << "\npath="
-            << PyObject_REPR(PySys_GetObject("path")) << std::endl;
-      }
-      else
-      {
-         auto_obj tracebackDict(PyModule_GetDict(traceback));
-         auto_obj format_exception_only(PyDict_GetItemString(tracebackDict, "format_exception_only"));
-         auto_obj exc(PyObject_CallFunction(format_exception_only, "OO", pException, pVal), true);
-         errStr << PyObject_REPR(exc) << std::endl;
-         if (pTb != NULL)
-         {
-            auto_obj format_tb(PyDict_GetItemString(tracebackDict, "format_tb"));
-            auto_obj tb(PyObject_CallFunction(format_tb, "O", pTb), true);
-            errStr << PyObject_REPR(tb) << std::endl;
-         }
-      }
-      std::string tmpStr = errStr.str();
-      for (std::string::size_type loc = tmpStr.find("\\n"); loc != std::string::npos; loc = tmpStr.find("\\n"))
-      {
-         tmpStr.replace(loc, 2, "\n");
-      }
-      throw PythonError(tmpStr);
-   }
-}
-
-PythonInterpreter::PythonInterpreter()
-{
-   setName("Python");
-   setDescription("Provides command line utilities to execute Python commands.");
-   setDescriptorId("{171f067d-1927-4cf0-b505-f3d6bcc09493}");
-   setCopyright(PYTHON_COPYRIGHT);
-   setVersion(PYTHON_VERSION_NUMBER);
-   setProductionStatus(PYTHON_IS_PRODUCTION_RELEASE);
-   allowMultipleInstances(false);
-   setWizardSupported(false);
-}
-
 bool PythonInterpreter::execute(PlugInArgList* pInArgList, PlugInArgList* pOutArgList)
 {
-   VERIFY(pInArgList != NULL && pOutArgList != NULL);
-   if (!PythonEngineOptions::getSettingInteractiveAvailable())
-   {
-      std::string returnType("Error");
-      std::string returnText = "Interactive interpreter has been disabled.";
-      VERIFY(pOutArgList->setPlugInArgValue(ReturnTypeArg(), &returnType));
-      VERIFY(pOutArgList->setPlugInArgValue(OutputTextArg(), &returnText));
-      return true;
-   }
-
-   std::string command;
-   if (!pInArgList->getPlugInArgValue(Interpreter::CommandArg(), command))
-   {
-      std::string returnType("Error");
-      std::string errorText("Invalid command argument.");
-      VERIFY(pOutArgList->setPlugInArgValue(Interpreter::ReturnTypeArg(), &returnType));
-      VERIFY(pOutArgList->setPlugInArgValue(Interpreter::OutputTextArg(), &errorText));
-      return true;
-   }
-   Progress* pProgress = pInArgList->getPlugInArgValue<Progress>(Executable::ProgressArg());
-   std::vector<PlugIn*> plugins = Service<PlugInManagerServices>()->getPlugInInstances(PythonEngine::PlugInName());
-   if (plugins.size() != 1)
-   {
-      std::string returnType("Error");
-      std::string errorText("Unable to locate python engine. " \
-         "Opticks may not be able to locate your Python installation. Try setting PYTHONHOME.");
-      VERIFY(pOutArgList->setPlugInArgValue(Interpreter::ReturnTypeArg(), &returnType));
-      VERIFY(pOutArgList->setPlugInArgValue(Interpreter::OutputTextArg(), &errorText));
-      return true;
-   }
-   PythonEngine* pEngine = dynamic_cast<PythonEngine*>(plugins.front());
-   VERIFY(pEngine != NULL);
-
-   std::string returnText;
-   std::string errorText;
-   if (!pEngine->processCommand(command, returnText, errorText, pProgress))
-   {
-      std::string returnType("Error");
-      returnText += "\n" + errorText;
-      VERIFY(pOutArgList->setPlugInArgValue(Interpreter::ReturnTypeArg(), &returnType));
-      VERIFY(pOutArgList->setPlugInArgValue(Interpreter::OutputTextArg(), &returnText));
-      return true;
-   }
-   // Populate the output arg list
-   if (errorText.empty())
-   {
-      std::string returnType("Output");
-      VERIFY(pOutArgList->setPlugInArgValue(Interpreter::ReturnTypeArg(), &returnType));
-      VERIFY(pOutArgList->setPlugInArgValue(Interpreter::OutputTextArg(), &returnText));
-   }
-   else
-   {
-      std::string returnType("Error");
-      VERIFY(pOutArgList->setPlugInArgValue(Interpreter::ReturnTypeArg(), &returnType));
-      VERIFY(pOutArgList->setPlugInArgValue(Interpreter::OutputTextArg(), &errorText));
-   }
-
+   mpEngine->startPython();
    return true;
 }
 
-std::string PythonInterpreter::getPrompt() const
+bool PythonInterpreter::isStarted() const
 {
-   std::vector<PlugIn*> plugins = Service<PlugInManagerServices>()->getPlugInInstances(PythonEngine::PlugInName());
-   if (plugins.size() != 1)
+   return mpEngine->isPythonRunning();
+}
+
+bool PythonInterpreter::start()
+{
+   bool alreadyStarted = mpEngine->isPythonRunning();
+   bool started = mpEngine->startPython();
+   if (!alreadyStarted && started)
    {
-      return ">>> ";
+      notify(SIGNAL_NAME(InterpreterManager, InterpreterStarted));
    }
-   PythonEngine* pEngine = dynamic_cast<PythonEngine*>(plugins.front());
-   VERIFYRV(pEngine != NULL, ">>> ");
-   return pEngine->getPrompt();
+   return started;
+}
+
+std::string PythonInterpreter::getStartupMessage() const
+{
+   return mpEngine->getStartupMessage();
+}
+
+Interpreter* PythonInterpreter::getInterpreter() const
+{
+   if (mpEngine->isPythonRunning())
+   {
+      return mpEngine.get();
+   }
+   return NULL;
+}
+
+const std::string& PythonInterpreter::getObjectType() const
+{
+   static std::string sType("PythonInterpreter");
+   return sType;
+}
+
+bool PythonInterpreter::isKindOf(const std::string& className) const
+{
+   if (className == getObjectType())
+   {
+      return true;
+   }
+
+   return SubjectImp::isKindOf(className);
 }
 
 PythonInterpreterWizardItem::PythonInterpreterWizardItem()
 {
    setName("Python Interpreter");
-   setDescription("Allow execution of Python code from within a wizard.");
+   setDescription("Allow execution of Python code from within a wizard. "
+      "This is DEPRECATED, please use the RunInterpreterCommands wizard item.");
    setDescriptorId("{2103eba4-f8d8-44be-9fb3-47fbbe8c6cc3}");
    setCopyright(PYTHON_COPYRIGHT);
    setVersion(PYTHON_VERSION_NUMBER);
@@ -666,7 +759,7 @@ bool PythonInterpreterWizardItem::getInputSpecification(PlugInArgList*& pArgList
 {
    VERIFY((pArgList = Service<PlugInManagerServices>()->getPlugInArgList()) != NULL);
    VERIFY(pArgList->addArg<Progress>(Executable::ProgressArg(), NULL));
-   VERIFY(pArgList->addArg<std::string>(Interpreter::CommandArg(), std::string()));
+   VERIFY(pArgList->addArg<std::string>("Command", std::string()));
 
    return true;
 }
@@ -674,8 +767,8 @@ bool PythonInterpreterWizardItem::getInputSpecification(PlugInArgList*& pArgList
 bool PythonInterpreterWizardItem::getOutputSpecification(PlugInArgList*& pArgList)
 {
    VERIFY((pArgList = Service<PlugInManagerServices>()->getPlugInArgList()) != NULL);
-   VERIFY(pArgList->addArg<std::string>(Interpreter::OutputTextArg()));
-   VERIFY(pArgList->addArg<std::string>(Interpreter::ReturnTypeArg()));
+   VERIFY(pArgList->addArg<std::string>("Output Text"));
+   VERIFY(pArgList->addArg<std::string>("Return Type"));
 
    return true;
 }
@@ -684,46 +777,46 @@ bool PythonInterpreterWizardItem::execute(PlugInArgList* pInArgList, PlugInArgLi
 {
    VERIFY(pInArgList != NULL && pOutArgList != NULL);
 
-   std::string command;
-   if (!pInArgList->getPlugInArgValue(Interpreter::CommandArg(), command))
-   {
-      return false;
-   }
    ProgressTracker progress(pInArgList->getPlugInArgValue<Progress>(ProgressArg()),
       "Execute Python command.", "python", "{5b5d5de3-faad-41ed-894b-dbe5a90d6d4d}");
 
-   std::vector<PlugIn*> plugins = Service<PlugInManagerServices>()->getPlugInInstances(PythonEngine::PlugInName());
+   progress.report("This wizard item is DEPRECATED, please use the RunInterpreterCommands wizard item.",
+      0, WARNING, true);
+   std::string command;
+   if (!pInArgList->getPlugInArgValue("Command", command))
+   {
+      return false;
+   }
+
+   std::vector<PlugIn*> plugins = Service<PlugInManagerServices>()->getPlugInInstances("Python");
    if (plugins.size() != 1)
    {
       progress.report("Unable to locate the Python engine.", 0, ERRORS, true);
       return false;
    }
-   PythonEngine* pEngine = dynamic_cast<PythonEngine*>(plugins.front());
-   VERIFY(pEngine != NULL);
-
-   progress.report("Executing Python command.", 1, NORMAL);
-   std::string returnText;
-   std::string errorText;
-   if (!pEngine->processCommand(command, returnText, errorText, progress.getCurrentProgress()))
+   PythonInterpreter* pMgr = dynamic_cast<PythonInterpreter*>(plugins.front());
+   VERIFY(pMgr != NULL);
+   pMgr->start();
+   Interpreter* pInterpreter = pMgr->getInterpreter();
+   if (pInterpreter == NULL)
    {
-      progress.report("Error executing Python command.", 0, ERRORS, true);
+      progress.report("Unable to start Python interpreter. " + pMgr->getStartupMessage(), 0, ERRORS, true);
       return false;
    }
-   // Populate the output arg list
-   if (errorText.empty())
-   {
-      std::string returnType("Output");
-      VERIFY(pOutArgList->setPlugInArgValue(Interpreter::ReturnTypeArg(), &returnType));
-      VERIFY(pOutArgList->setPlugInArgValue(Interpreter::OutputTextArg(), &returnText));
-   }
-   else
-   {
-      std::string returnType("Error");
-      VERIFY(pOutArgList->setPlugInArgValue(Interpreter::ReturnTypeArg(), &returnType));
-      VERIFY(pOutArgList->setPlugInArgValue(Interpreter::OutputTextArg(), &errorText));
-   }
 
+   progress.report("Executing Python command.", 1, NORMAL);
+   std::string outputAndErrorText;
+   bool hasErrorText = false;
+   bool retVal = InterpreterUtilities::executeScopedCommand("Python", command, outputAndErrorText,
+      hasErrorText, progress.getCurrentProgress());
+   if (!retVal)
+   {
+      progress.report("Error executing Python command.", 0, ERRORS, true);
+   }
+   std::string returnType = (hasErrorText ? "Error" : "Output");
+   VERIFY(pOutArgList->setPlugInArgValue("Return Type", &returnType));
+   VERIFY(pOutArgList->setPlugInArgValue("Output Text", &outputAndErrorText));
    progress.report("Executing Python command.", 100, NORMAL);
    progress.upALevel();
-   return true;
+   return retVal;
 }

@@ -10,28 +10,39 @@
 #ifndef PYTHONENGINE_H__
 #define PYTHONENGINE_H__
 
-#include "ExecutableShell.h"
-#include "InterpreterShell.h"
+#include "Interpreter.h"
+#include "InterpreterManagerShell.h"
 #include "PythonCommon.h"
+#include "SubjectImp.h"
 #include "WizardShell.h"
 #include <stdexcept>
 #include <string>
 #include <vector>
 
-class PythonEngine : public ExecutableShell
+class PythonEngine : public Interpreter, public SubjectImp
 {
 public:
-   static std::string PlugInName() { return "Python Engine"; }
    PythonEngine();
    virtual ~PythonEngine();
 
-   virtual bool getInputSpecification(PlugInArgList*& pArgList);
-   virtual bool getOutputSpecification(PlugInArgList*& pArgList);
-   virtual bool execute(PlugInArgList* pInArgList, PlugInArgList* pOutArgList);
+   bool isPythonRunning() const;
+   bool startPython();
+   std::string getStartupMessage() const;
 
    virtual std::string getPrompt() const;
-   bool processCommand(const std::string& command, std::string& returnText,
-      std::string& errorText, Progress* pProgress);
+   virtual bool executeCommand(const std::string& command);
+   virtual bool executeScopedCommand(const std::string& command, const Slot& output,
+      const Slot& error, Progress* pProgress);
+   virtual bool isGlobalOutputShown() const;
+   virtual void showGlobalOutput(bool newValue);
+
+   void sendOutput(const std::string& text);
+   void sendError(const std::string& text);
+
+   virtual const std::string& getObjectType() const;
+   virtual bool isKindOf(const std::string& className) const;
+
+   SUBJECTADAPTER_METHODS(SubjectImp)
 
    class PythonError : public std::exception
    {
@@ -51,24 +62,48 @@ protected:
    void checkErr();
 
 private:
-   bool processLines(const std::vector<std::string>& lines);
+   void sendOutput(const std::string& text, bool scoped);
+   void sendError(const std::string& text, bool scoped);
+
+   void gatherOutput(Subject& subject, const std::string& signal, const boost::any& data);
+
+   SIGNAL_METHOD(PythonEngine, ScopedOutputText);
+   SIGNAL_METHOD(PythonEngine, ScopedErrorText);
 
    auto_obj mInterpModule;
    auto_obj mStdin;
-   auto_obj mStdout;
-   auto_obj mStderr;
    auto_obj mInterpreter;
+   auto_obj mGlobals;
+   auto_obj mRunModule;
    std::string mPrompt;
+   bool mGlobalOutputShown;
+   bool mPythonRunning;
+   bool mAttemptedOneStart;
+   bool mRunningScopedCommand;
+   std::string mStartupMessage;
+   std::string mGatheredOutput;
 };
 
-class PythonInterpreter : public InterpreterShell
+class PythonInterpreter : public InterpreterManagerShell, public SubjectImp
 {
 public:
    PythonInterpreter();
    virtual ~PythonInterpreter() {}
 
    virtual bool execute(PlugInArgList* pInArgList, PlugInArgList* pOutArgList);
-   virtual std::string getPrompt() const;
+
+   virtual bool isStarted() const;
+   virtual bool start();
+   virtual std::string getStartupMessage() const;
+   virtual Interpreter* getInterpreter() const;
+
+   virtual const std::string& getObjectType() const;
+   virtual bool isKindOf(const std::string& className) const;
+
+   SUBJECTADAPTER_METHODS(SubjectImp)
+private:
+   std::auto_ptr<PythonEngine> mpEngine;
+
 };
 
 class PythonInterpreterWizardItem : public WizardShell
