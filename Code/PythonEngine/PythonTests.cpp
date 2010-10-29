@@ -8,6 +8,7 @@
  */
 
 #include "AppVerify.h"
+#include "InterpreterUtilities.h"
 #include "PythonTests.h"
 #include "PythonVersion.h"
 #include "PlugInManagerServices.h"
@@ -34,50 +35,41 @@ PythonTests::~PythonTests()
 
 bool PythonTests::runOperationalTests(Progress* pProgress, std::ostream& failure)
 {
-   std::vector<PlugIn*> plugins = Service<PlugInManagerServices>()->getPlugInInstances(PythonEngine::PlugInName());
+   std::vector<PlugIn*> plugins = Service<PlugInManagerServices>()->getPlugInInstances("Python");
    if (plugins.size() != 1)
    {
       failure << "Unable to locate python engine. " \
          "Opticks may not be able to locate your Python installation. Try setting PYTHONHOME.";
       return false;
    }
-   PythonEngine* pEngine = dynamic_cast<PythonEngine*>(plugins.front());
-   VERIFY(pEngine != NULL);
+   PythonInterpreter* pInterMgr = dynamic_cast<PythonInterpreter*>(plugins.front());
+   VERIFY(pInterMgr != NULL);
+   Interpreter* pInterpreter = pInterMgr->getInterpreter();
+   if (pInterpreter == NULL)
+   {
+      failure << "Unable to locate python engine. " \
+         "Opticks may not be able to locate your Python installation. Try setting PYTHONHOME.";
+      return false;
+   }
 
    if (pProgress != NULL)
    {
-      pProgress->updateProgress("Importing opticks module.", 5, NORMAL);
+      pProgress->updateProgress("Executing Python tests.", 5, NORMAL);
    }
-   std::string command = "import opticks";
+   std::string command = "import opticks.test\n"
+      "result = opticks.test.run_tests()\n"
+      "if not(result.wasSuccessful()):\n"
+      "    raise Exception('One or more tests failed')";
    std::string returnText;
-   std::string errorText;
-   if (!pEngine->processCommand(command, returnText, errorText, pProgress) || !errorText.empty())
-   {
-      failure << errorText << std::endl;
-      if (pProgress != NULL)
-      {
-         pProgress->updateProgress("Error importing opticks module.", 0, ERRORS);
-         return false;
-      }
-   }
+   bool hasErrorText = false;
+   bool testsPassed = InterpreterUtilities::executeScopedCommand("Python", command, returnText,
+      hasErrorText, pProgress);
    if (pProgress != NULL)
    {
-      pProgress->updateProgress("Executing Python tests.", 10, NORMAL);
+      pProgress->updateProgress(returnText, 99, WARNING);
    }
-   errorText.clear();
-   command = "opticks.utils.runTests()";
-   if (!pEngine->processCommand(command, returnText, errorText, pProgress) || !errorText.empty())
+   if (!testsPassed)
    {
-      failure << errorText << std::endl;
-      if (pProgress != NULL)
-      {
-         pProgress->updateProgress("Error executing Python tests.", 0, ERRORS);
-         return false;
-      }
-   }
-   if (returnText.find("FAILED (errors=") != std::string::npos)
-   {
-      failure << returnText;
       if (pProgress != NULL)
       {
          pProgress->updateProgress("Python tests failed.", 0, ERRORS);
