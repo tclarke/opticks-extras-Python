@@ -375,9 +375,20 @@ void PythonEngine::checkErr()
          {
             auto_obj format_tb(PyDict_GetItemString(tracebackDict, "format_tb"));
             auto_obj tb(PyObject_CallFunction(format_tb, "O", pTb), true);
-            auto_obj tempString2(PyString_FromString(""), true);
-            auto_obj completeString2(PyObject_CallMethod(tempString2, "join", "(O)", tb), true);
-            errStr = std::string(PyString_AsString(completeString2));
+            auto_obj scopedDict(PyDict_New(), true);
+            if (scopedDict.get() != NULL)
+            {
+               int retVal = PyDict_SetItemString(scopedDict, "tb", tb);
+               if (retVal == 0)
+               {
+                  auto_obj retObj(PyRun_String("''.join(tb)", Py_eval_input, scopedDict.get(),
+                     scopedDict.get()), true);
+                  if (retObj.get() != NULL)
+                  {
+                     errStr = std::string(PyString_AsString(retObj));
+                  }
+               }
+            }
             if (!errStr.empty())
             {
                errStr = "Traceback (most recent call last):\n" + errStr;
@@ -385,9 +396,24 @@ void PythonEngine::checkErr()
          }
          auto_obj format_exception_only(PyDict_GetItemString(tracebackDict, "format_exception_only"));
          auto_obj excList(PyObject_CallFunction(format_exception_only, "OO", pException, pVal), true);
-         auto_obj tempString(PyString_FromString(""), true);
-         auto_obj completeString(PyObject_CallMethod(tempString, "join", "(O)", excList), true);
-         errStr += std::string(PyString_AsString(completeString));
+         auto_obj scopedDict(PyDict_New(), true);
+         if (scopedDict.get() != NULL)
+         {
+            int retVal = PyDict_SetItemString(scopedDict, "excList", excList);
+            if (retVal == 0)
+            {
+               auto_obj retObj(PyRun_String("''.join(excList)", Py_eval_input, scopedDict.get(),
+                  scopedDict.get()), true);
+               if (retObj.get() != NULL)
+               {
+                  errStr += std::string(PyString_AsString(retObj));
+               }
+            }
+         }
+      }
+      if (errStr.empty())
+      {
+         errStr = "Could not retrieve detailed error message";
       }
       throw PythonError(errStr);
    }
