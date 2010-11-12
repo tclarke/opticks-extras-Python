@@ -445,7 +445,6 @@ PythonInterpreter::PythonInterpreter()
    setVersion(PYTHON_VERSION_NUMBER);
    setProductionStatus(PYTHON_IS_PRODUCTION_RELEASE);
    allowMultipleInstances(false);
-   setFileExtensions("Python Scripts (*.py *.pyw)");
    setWizardSupported(false);
    setInteractiveEnabled(PythonEngineOptions::getSettingInteractiveAvailable());
    addDependencyCopyright("Python", "<pre>A. HISTORY OF THE SOFTWARE\n"
