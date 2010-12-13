@@ -105,15 +105,4 @@ private:
    std::auto_ptr<PythonEngine> mpEngine;
 
 };
-
-class PythonInterpreterWizardItem : public WizardShell
-{
-public:
-   PythonInterpreterWizardItem();
-   virtual ~PythonInterpreterWizardItem() {}
-   virtual bool getInputSpecification(PlugInArgList*& pArgList);
-   virtual bool getOutputSpecification(PlugInArgList*& pArgList);
-   virtual bool execute(PlugInArgList* pInArgList, PlugInArgList* pOutArgList);
-};
-
 #endif

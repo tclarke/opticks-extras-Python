@@ -26,7 +26,6 @@
 #include <boost/tokenizer.hpp>
 
 REGISTER_PLUGIN_BASIC(Python, PythonInterpreter);
-REGISTER_PLUGIN_BASIC(Python, PythonInterpreterWizardItem);
 
 namespace
 {
@@ -769,81 +768,4 @@ bool PythonInterpreter::isKindOf(const std::string& className) const
    }
 
    return SubjectImp::isKindOf(className);
-}
-
-PythonInterpreterWizardItem::PythonInterpreterWizardItem()
-{
-   setName("Python Interpreter");
-   setDescription("Allow execution of Python code from within a wizard. "
-      "This is DEPRECATED, please use the RunInterpreterCommands wizard item.");
-   setDescriptorId("{2103eba4-f8d8-44be-9fb3-47fbbe8c6cc3}");
-   setCopyright(PYTHON_COPYRIGHT);
-   setVersion(PYTHON_VERSION_NUMBER);
-   setProductionStatus(PYTHON_IS_PRODUCTION_RELEASE);
-}
-
-bool PythonInterpreterWizardItem::getInputSpecification(PlugInArgList*& pArgList)
-{
-   VERIFY((pArgList = Service<PlugInManagerServices>()->getPlugInArgList()) != NULL);
-   VERIFY(pArgList->addArg<Progress>(Executable::ProgressArg(), NULL));
-   VERIFY(pArgList->addArg<std::string>("Command", std::string()));
-
-   return true;
-}
-
-bool PythonInterpreterWizardItem::getOutputSpecification(PlugInArgList*& pArgList)
-{
-   VERIFY((pArgList = Service<PlugInManagerServices>()->getPlugInArgList()) != NULL);
-   VERIFY(pArgList->addArg<std::string>("Output Text"));
-   VERIFY(pArgList->addArg<std::string>("Return Type"));
-
-   return true;
-}
-
-bool PythonInterpreterWizardItem::execute(PlugInArgList* pInArgList, PlugInArgList* pOutArgList)
-{
-   VERIFY(pInArgList != NULL && pOutArgList != NULL);
-
-   ProgressTracker progress(pInArgList->getPlugInArgValue<Progress>(ProgressArg()),
-      "Execute Python command.", "python", "{5b5d5de3-faad-41ed-894b-dbe5a90d6d4d}");
-
-   progress.report("This wizard item is DEPRECATED, please use the RunInterpreterCommands wizard item.",
-      0, WARNING, true);
-   std::string command;
-   if (!pInArgList->getPlugInArgValue("Command", command))
-   {
-      return false;
-   }
-
-   std::vector<PlugIn*> plugins = Service<PlugInManagerServices>()->getPlugInInstances("Python");
-   if (plugins.size() != 1)
-   {
-      progress.report("Unable to locate the Python engine.", 0, ERRORS, true);
-      return false;
-   }
-   PythonInterpreter* pMgr = dynamic_cast<PythonInterpreter*>(plugins.front());
-   VERIFY(pMgr != NULL);
-   pMgr->start();
-   Interpreter* pInterpreter = pMgr->getInterpreter();
-   if (pInterpreter == NULL)
-   {
-      progress.report("Unable to start Python interpreter. " + pMgr->getStartupMessage(), 0, ERRORS, true);
-      return false;
-   }
-
-   progress.report("Executing Python command.", 1, NORMAL);
-   std::string outputAndErrorText;
-   bool hasErrorText = false;
-   bool retVal = InterpreterUtilities::executeScopedCommand("Python", command, outputAndErrorText,
-      hasErrorText, progress.getCurrentProgress());
-   if (!retVal)
-   {
-      progress.report("Error executing Python command.", 0, ERRORS, true);
-   }
-   std::string returnType = (hasErrorText ? "Error" : "Output");
-   VERIFY(pOutArgList->setPlugInArgValue("Return Type", &returnType));
-   VERIFY(pOutArgList->setPlugInArgValue("Output Text", &outputAndErrorText));
-   progress.report("Executing Python command.", 100, NORMAL);
-   progress.upALevel();
-   return retVal;
 }
