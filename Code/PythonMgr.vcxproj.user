@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <LocalDebuggerCommand>$(CODE_DIR)\Build\Binaries-$(Platform)-$(Configuration)\Bin\Opticks.exe</LocalDebuggerCommand>
+    <LocalDebuggerCommandArguments>/deployment:$(BuildDir)\Binaries-$(Platform)-$(Configuration)\Bin\Python.dep</LocalDebuggerCommandArguments>
+    <LocalDebuggerEnvironment>PYTHONPATH=$(SolutionDir)\..\Release\SupportFiles\site-packages
+PATH=%PATH%;$(BuildDir)\Binaries-$(Platform)-$(Configuration)\Bin;$(CODE_DIR)\Build\Binaries-$(Platform)-$(Configuration)\Lib
+$(LocalDebuggerEnvironment)</LocalDebuggerEnvironment>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <LocalDebuggerCommand>$(CODE_DIR)\Build\Binaries-$(Platform)-$(Configuration)\Bin\Opticks.exe</LocalDebuggerCommand>
+    <LocalDebuggerCommandArguments>/deployment:$(BuildDir)\Binaries-$(Platform)-$(Configuration)\Bin\Python.dep</LocalDebuggerCommandArguments>
+    <LocalDebuggerEnvironment>PYTHONPATH=$(SolutionDir)\..\Release\SupportFiles\site-packages
+PATH=%PATH%;$(BuildDir)\Binaries-$(Platform)-$(Configuration)\Bin;$(CODE_DIR)\Build\Binaries-$(Platform)-$(Configuration)\Lib
+$(LocalDebuggerEnvironment)</LocalDebuggerEnvironment>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <LocalDebuggerCommand>$(CODE_DIR)\Build\Binaries-$(Platform)-$(Configuration)\Bin\Opticks.exe</LocalDebuggerCommand>
+    <LocalDebuggerCommandArguments>/deployment:$(BuildDir)\Binaries-$(Platform)-$(Configuration)\Bin\Python.dep</LocalDebuggerCommandArguments>
+    <LocalDebuggerEnvironment>PYTHONPATH=$(SolutionDir)\..\Release\SupportFiles\site-packages
+PATH=%PATH%;$(BuildDir)\Binaries-$(Platform)-$(Configuration)\Bin;$(CODE_DIR)\Build\Binaries-$(Platform)-$(Configuration)\Lib
+$(LocalDebuggerEnvironment)</LocalDebuggerEnvironment>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <LocalDebuggerCommand>$(CODE_DIR)\Build\Binaries-$(Platform)-$(Configuration)\Bin\Opticks.exe</LocalDebuggerCommand>
+    <LocalDebuggerCommandArguments>/deployment:$(BuildDir)\Binaries-$(Platform)-$(Configuration)\Bin\Python.dep</LocalDebuggerCommandArguments>
+    <LocalDebuggerEnvironment>PYTHONPATH=$(SolutionDir)\..\Release\SupportFiles\site-packages
+PATH=%PATH%;$(BuildDir)\Binaries-$(Platform)-$(Configuration)\Bin;$(CODE_DIR)\Build\Binaries-$(Platform)-$(Configuration)\Lib
+$(LocalDebuggerEnvironment)</LocalDebuggerEnvironment>
+    <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
+  </PropertyGroup>
+</Project>

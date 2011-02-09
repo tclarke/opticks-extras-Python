@@ -11,8 +11,17 @@
 #define PYTHONCOMMON_H__
 
 #define PY_SSIZE_T_CLEAN // we use Py_ssize_t correctly
+#if defined(_DEBUG)
+#define RESTORE_DEBUG_DEFINE 1
+#endif
 #undef _DEBUG // necessary to use release Python binaries with debug plug-in builds
 #include <Python.h>
+#if defined(RESTORE_DEBUG_DEFINE)
+#undef RESTORE_DEBUG_DEFINE
+#define _DEBUG //if we didn't turn this back on, VC++ builds would build using
+               //un-checked STL iterators which conflict with Opticks static libaries
+               //if you take out the #define, you will see LNK2038 about _ITERATOR_DEBUG_LEVEL mismatches
+#endif 
 
 /**
  * auto ptr object for PyObject*
