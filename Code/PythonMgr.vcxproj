@@ -94,6 +94,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="Include\PythonCommon.h" />
+    <ClInclude Include="Include\PythonInterpreter.h" />
     <ClInclude Include="Include\PythonVersion.h" />
   </ItemGroup>
   <ItemGroup>

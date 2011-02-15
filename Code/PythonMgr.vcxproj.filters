@@ -18,6 +18,9 @@
     <ClInclude Include="Include\PythonVersion.h">
       <Filter>Include</Filter>
     </ClInclude>
+    <ClInclude Include="Include\PythonInterpreter.h">
+      <Filter>Include</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\Release\SupportFiles\site-packages\_opticks.py">

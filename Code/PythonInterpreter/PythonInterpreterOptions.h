@@ -7,30 +7,25 @@
  * http://www.gnu.org/licenses/lgpl.html
  */
 
-#ifndef PYTHONENGINEOPTIONS_H
-#define PYTHONENGINEOPTIONS_H
+#ifndef PYTHONINTERPRETEROPTIONS_H
+#define PYTHONINTERPRETEROPTIONS_H
 
-#include "ConfigurationSettings.h"
 #include "Filename.h"
-#include "PythonVersion.h"
 #include "LabeledSectionGroup.h"
+#include "PythonVersion.h"
 #include <string>
 #include <vector>
 
 class FileBrowser;
 class QLineEdit;
 
-class PythonEngineOptions : public LabeledSectionGroup
+class PythonInterpreterOptions : public LabeledSectionGroup
 {
    Q_OBJECT
 
 public:
-   SETTING_PTR(UserFile, PythonEngine, Filename);
-   SETTING(InteractiveAvailable, PythonEngine, bool, true);
-   SETTING(PythonHome, PythonEngine, std::string, "");
-   
-   PythonEngineOptions();
-   virtual ~PythonEngineOptions();
+   PythonInterpreterOptions();
+   virtual ~PythonInterpreterOptions();
 
    void setUserFile(const Filename* pUserFile);
    void applyChanges();

@@ -19,8 +19,8 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{D48E70DC-E990-4BB6-A689-B84B88AB2BC8}</ProjectGuid>
-    <RootNamespace>PythonEngine26</RootNamespace>
+    <ProjectGuid>{AD6B3158-3F96-4254-AFB8-122857BFED24}</ProjectGuid>
+    <RootNamespace>PythonInterpreter25</RootNamespace>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -54,8 +54,7 @@
     <Import Project="$(OPTICKS_CODE_DIR)\application\CompileSettings\Qt-debug.props" />
     <Import Project="$(OPTICKS_CODE_DIR)\application\CompileSettings\PlugInCommonSettings.props" />
     <Import Project="..\CompileSettings\PythonCommon.props" />
-    <Import Project="..\CompileSettings\Python26.props" />
-    <Import Project="..\CompileSettings\Python.props" />
+    <Import Project="..\CompileSettings\Python25.props" />
   </ImportGroup>
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
@@ -65,8 +64,7 @@
     <Import Project="$(OPTICKS_CODE_DIR)\application\CompileSettings\Qt-release.props" />
     <Import Project="$(OPTICKS_CODE_DIR)\application\CompileSettings\PlugInCommonSettings.props" />
     <Import Project="..\CompileSettings\PythonCommon.props" />
-    <Import Project="..\CompileSettings\Python26.props" />
-    <Import Project="..\CompileSettings\Python.props" />
+    <Import Project="..\CompileSettings\Python25.props" />
   </ImportGroup>
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
@@ -76,8 +74,7 @@
     <Import Project="$(OPTICKS_CODE_DIR)\application\CompileSettings\Qt-debug.props" />
     <Import Project="$(OPTICKS_CODE_DIR)\application\CompileSettings\PlugInCommonSettings.props" />
     <Import Project="..\CompileSettings\PythonCommon.props" />
-    <Import Project="..\CompileSettings\Python26.props" />
-    <Import Project="..\CompileSettings\Python.props" />
+    <Import Project="..\CompileSettings\Python25.props" />
   </ImportGroup>
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
@@ -87,8 +84,7 @@
     <Import Project="$(OPTICKS_CODE_DIR)\application\CompileSettings\Qt-release.props" />
     <Import Project="$(OPTICKS_CODE_DIR)\application\CompileSettings\PlugInCommonSettings.props" />
     <Import Project="..\CompileSettings\PythonCommon.props" />
-    <Import Project="..\CompileSettings\Python26.props" />
-    <Import Project="..\CompileSettings\Python.props" />
+    <Import Project="..\CompileSettings\Python25.props" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup>
@@ -97,12 +93,33 @@
   <ItemDefinitionGroup>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="OpticksModule.cpp" />
-    <ClCompile Include="PythonEngine.cpp" />
+    <ClCompile Include="ModuleManager.cpp" />
+    <ClCompile Include="PythonInterpreterManager.cpp" />
+    <ClCompile Include="PythonInterpreterOptions.cpp" />
+    <ClCompile Include="PythonTests.cpp" />
+    <ClCompile Include="$(BuildDir)\Moc\$(ProjectName)\moc_PythonInterpreterOptions.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="OpticksModule.h" />
-    <ClInclude Include="PythonEngine.h" />
+    <CustomBuild Include="PythonInterpreterOptions.h">
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Moc%27ing %(Filename).h..."</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">"$(QTBIN)\moc.exe" "%(FullPath)" -o "$(BuildDir)\Moc\$(ProjectName)\moc_%(Filename).cpp"
+</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">$(BuildDir)\Moc\$(ProjectName)\moc_%(Filename).cpp;%(Outputs)</Outputs>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Moc%27ing %(Filename).h..."</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">"$(QTBIN)\moc.exe" "%(FullPath)" -o "$(BuildDir)\Moc\$(ProjectName)\moc_%(Filename).cpp"
+</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">$(BuildDir)\Moc\$(ProjectName)\moc_%(Filename).cpp;%(Outputs)</Outputs>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Moc%27ing %(Filename).h..."</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">"$(QTBIN)\moc.exe" "%(FullPath)" -o "$(BuildDir)\Moc\$(ProjectName)\moc_%(Filename).cpp"
+</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">$(BuildDir)\Moc\$(ProjectName)\moc_%(Filename).cpp;%(Outputs)</Outputs>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Moc%27ing %(Filename).h..."</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">"$(QTBIN)\moc.exe" "%(FullPath)" -o "$(BuildDir)\Moc\$(ProjectName)\moc_%(Filename).cpp"
+</Command>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">$(BuildDir)\Moc\$(ProjectName)\moc_%(Filename).cpp;%(Outputs)</Outputs>
+    </CustomBuild>
+    <ClInclude Include="PythonInterpreterManager.h" />
+    <ClInclude Include="PythonTests.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

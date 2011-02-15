@@ -3,12 +3,14 @@
   <PropertyGroup Label="UserMacros">
     <PYTHON_VERSION>25</PYTHON_VERSION>
   </PropertyGroup>
-  <ImportGroup Label="PropertySheets">
-    <Import Project="Python.props" />
-  </ImportGroup>
   <PropertyGroup>
     <_ProjectFileVersion>10.0.30319.1</_ProjectFileVersion>
   </PropertyGroup>
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <PreprocessorDefinitions>PYTHON_VERSION="$(PYTHON_VERSION)";%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ClCompile>
+  </ItemDefinitionGroup>
   <ItemGroup>
     <BuildMacro Include="PYTHON_VERSION">
       <Value>$(PYTHON_VERSION)</Value>

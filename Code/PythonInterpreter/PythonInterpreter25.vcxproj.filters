@@ -9,21 +9,38 @@
       <UniqueIdentifier>{1c58d4b5-fd4c-4320-9b49-38efdf188fa4}</UniqueIdentifier>
       <Extensions>h;hpp;hxx;hm;inl</Extensions>
     </Filter>
+    <Filter Include="moc">
+      <UniqueIdentifier>{ba4090ad-3986-4775-a0c5-45fc8990d1a8}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="OpticksModule.cpp">
+    <ClCompile Include="ModuleManager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="PythonEngine.cpp">
+    <ClCompile Include="PythonTests.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="$(BuildDir)\Moc\$(ProjectName)\moc_PythonInterpreterOptions.cpp">
+      <Filter>moc</Filter>
+    </ClCompile>
+    <ClCompile Include="PythonInterpreterManager.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="PythonInterpreterOptions.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="OpticksModule.h">
+    <ClInclude Include="PythonTests.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="PythonEngine.h">
+    <ClInclude Include="PythonInterpreterManager.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="PythonInterpreterOptions.h">
+      <Filter>Header Files</Filter>
+    </CustomBuild>
   </ItemGroup>
 </Project>

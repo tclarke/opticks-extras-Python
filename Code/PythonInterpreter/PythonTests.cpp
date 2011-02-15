@@ -9,12 +9,12 @@
 
 #include "AppVerify.h"
 #include "InterpreterUtilities.h"
-#include "PythonTests.h"
-#include "PythonVersion.h"
 #include "PlugInManagerServices.h"
 #include "PlugInRegistration.h"
 #include "Progress.h"
-#include "PythonEngine.h"
+#include "PythonInterpreterManager.h"
+#include "PythonTests.h"
+#include "PythonVersion.h"
 
 REGISTER_PLUGIN_BASIC(Python, PythonTests);
 
@@ -42,7 +42,7 @@ bool PythonTests::runOperationalTests(Progress* pProgress, std::ostream& failure
          "Opticks may not be able to locate your Python installation. Try setting PYTHONHOME.";
       return false;
    }
-   PythonInterpreter* pInterMgr = dynamic_cast<PythonInterpreter*>(plugins.front());
+   PythonInterpreterManager* pInterMgr = dynamic_cast<PythonInterpreterManager*>(plugins.front());
    VERIFY(pInterMgr != NULL);
    Interpreter* pInterpreter = pInterMgr->getInterpreter();
    if (pInterpreter == NULL)

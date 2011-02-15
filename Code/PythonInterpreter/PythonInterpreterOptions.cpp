@@ -14,14 +14,15 @@
 #include "LabeledSection.h"
 #include "OptionQWidgetWrapper.h"
 #include "PlugInRegistration.h"
-#include "PythonEngineOptions.h"
+#include "PythonInterpreterOptions.h"
+#include "PythonInterpreter.h"
 #include <QtGui/QLabel>
 #include <QtGui/QLineEdit>
 #include <QtGui/QWidget>
 
-REGISTER_PLUGIN(Python, PythonEngineOptions, OptionQWidgetWrapper<PythonEngineOptions>());
+REGISTER_PLUGIN(Python, PythonInterpreterOptions, OptionQWidgetWrapper<PythonInterpreterOptions>());
 
-PythonEngineOptions::PythonEngineOptions()
+PythonInterpreterOptions::PythonInterpreterOptions()
 {
    QWidget* pPythonConfigWidget = new QWidget(this);
    QLabel* pUserConfLabel = new QLabel("Python User Configuration File Location", pPythonConfigWidget);
@@ -46,17 +47,17 @@ PythonEngineOptions::PythonEngineOptions()
    addSection(pPythonConfigSection, 100);
    addStretch(1);
 
-   const Filename* pTmpFile = PythonEngineOptions::getSettingUserFile();
+   const Filename* pTmpFile = PythonInterpreter::getSettingUserFile();
    setUserFile(pTmpFile);
    
-   mpPythonHome->setText(QString::fromStdString(PythonEngineOptions::getSettingPythonHome()));
+   mpPythonHome->setText(QString::fromStdString(PythonInterpreter::getSettingPythonHome()));
 }
 
-PythonEngineOptions::~PythonEngineOptions()
+PythonInterpreterOptions::~PythonInterpreterOptions()
 {
 }
 
-void PythonEngineOptions::setUserFile(const Filename* pUserFile)
+void PythonInterpreterOptions::setUserFile(const Filename* pUserFile)
 {
    if (pUserFile != NULL)
    {
@@ -64,10 +65,10 @@ void PythonEngineOptions::setUserFile(const Filename* pUserFile)
    }
 }
 
-void PythonEngineOptions::applyChanges()
+void PythonInterpreterOptions::applyChanges()
 {
    FactoryResource<Filename> pTmpFile;
    pTmpFile->setFullPathAndName(mpUserConfig->getFilename().toStdString());
-   PythonEngineOptions::setSettingUserFile(pTmpFile.get());
-   PythonEngineOptions::setSettingPythonHome(mpPythonHome->text().toStdString());
+   PythonInterpreter::setSettingUserFile(pTmpFile.get());
+   PythonInterpreter::setSettingPythonHome(mpPythonHome->text().toStdString());
 }

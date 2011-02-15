@@ -5,7 +5,7 @@
   </PropertyGroup>
   <ItemDefinitionGroup>
     <ClCompile>
-      <AdditionalIncludeDirectories>$(OPTICKSDEPENDENCIESINCLUDE)\python$(PYTHON_VERSION);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(OPTICKSDEPENDENCIESINCLUDE)\python$(PYTHON_VERSION);$(SolutionDir)\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <AdditionalDependencies>python$(PYTHON_VERSION).lib;%(AdditionalDependencies)</AdditionalDependencies>

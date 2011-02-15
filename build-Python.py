@@ -540,6 +540,7 @@ def build_installer(aeb_platforms=[], python_version=None, aeb_output=None,
             extension_plugin_path = join(bin_dir, "PlugIns")
             target_plugin_path = join("platform", plat, "PlugIns")
             copy_file_to_zip(extension_plugin_path, target_plugin_path, "PythonEngine%s.dll" % python_version, zfile)
+            copy_file_to_zip(extension_plugin_path, target_plugin_path, "PythonInterpreter%s.dll" % python_version, zfile)
         elif plat_parts[0] == 'solaris' or plat_parts[0] == 'linux':
             prefix_dir = os.path.abspath(".")
             if is_windows():
@@ -552,6 +553,7 @@ def build_installer(aeb_platforms=[], python_version=None, aeb_output=None,
             extension_plugin_path = join(bin_dir, "PlugIns")
             target_plugin_path = join("platform", plat, "PlugIns")
             copy_file_to_zip(extension_plugin_path, target_plugin_path, "PythonEngine%s.so" % python_version, zfile)
+            copy_file_to_zip(extension_plugin_path, target_plugin_path, "PythonInterpreter%s.so" % python_version, zfile)
         else:
             raise ScriptException("Unknown AEB platform %s" % plat)
     zfile.close()

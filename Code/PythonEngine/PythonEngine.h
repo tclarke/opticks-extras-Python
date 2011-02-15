@@ -10,16 +10,20 @@
 #ifndef PYTHONENGINE_H__
 #define PYTHONENGINE_H__
 
-#include "Interpreter.h"
-#include "InterpreterManagerShell.h"
+#include "AppConfig.h"
 #include "PythonCommon.h"
+#include "PythonInterpreter.h"
 #include "SubjectImp.h"
-#include "WizardShell.h"
 #include <stdexcept>
 #include <string>
 #include <vector>
 
-class PythonEngine : public Interpreter, public SubjectImp
+class External;
+
+extern "C" LINKAGE PythonInterpreter* init_python_engine(External* pServices);
+extern "C" LINKAGE void shutdown_python_engine();
+
+class PythonEngine : public PythonInterpreter, public SubjectImp
 {
 public:
    PythonEngine();
@@ -28,6 +32,7 @@ public:
    bool isPythonRunning() const;
    bool startPython();
    std::string getStartupMessage() const;
+   void setStartupMessage(const std::string& msg);
 
    virtual std::string getPrompt() const;
    virtual bool executeCommand(const std::string& command);
@@ -84,25 +89,4 @@ private:
    std::string mGatheredOutput;
 };
 
-class PythonInterpreter : public InterpreterManagerShell, public SubjectImp
-{
-public:
-   PythonInterpreter();
-   virtual ~PythonInterpreter() {}
-
-   virtual bool execute(PlugInArgList* pInArgList, PlugInArgList* pOutArgList);
-
-   virtual bool isStarted() const;
-   virtual bool start();
-   virtual std::string getStartupMessage() const;
-   virtual Interpreter* getInterpreter() const;
-
-   virtual const std::string& getObjectType() const;
-   virtual bool isKindOf(const std::string& className) const;
-
-   SUBJECTADAPTER_METHODS(SubjectImp)
-private:
-   std::auto_ptr<PythonEngine> mpEngine;
-
-};
 #endif
