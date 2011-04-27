@@ -7,9 +7,7 @@ class PythonNotFound(SCons.Warnings.Warning):
 SCons.Warnings.enableWarningClass(PythonNotFound)
 
 def generate(env):
-    path = os.environ.get('OPTICKSDEPENDENCIES',None)
-    if path:
-       path = os.path.join(path, "python")
+    path = env['OPTICKSDEPENDENCIESINCLUDE']
     if not path:
        SCons.Warnings.warn(PythonFound,"Could not detect Python")
     else:
@@ -17,8 +15,7 @@ def generate(env):
            lib = "python%s" % (env["PYTHONVERSION"])
        else:
            lib = 'python%s.%s' % tuple(env['PYTHONVERSION'])
-       env.AppendUnique(CXXFLAGS= ["-I%s/include/%s" % (path,env['PYTHONVERSION']), "-I%s/include/%s/%s" % (path,env['PYTHONVERSION'],env['OPTICKSPLATFORM'])],
-                        LIBPATH=['%s/lib/%s' % (path,env['OPTICKSPLATFORM'])],
+       env.AppendUnique(CXXFLAGS= ["-I%s/%s" % (path,env['PYTHONVERSION'])],
                         LIBS=[lib])
 
 def exists(env):

@@ -549,7 +549,7 @@ def build_installer(aeb_platforms=[], python_version=None, aeb_output=None,
                         "command-line argument to build an AEB using "\
                         "any of the solaris platforms.")
                 prefix_dir = os.path.abspath(solaris_dir)
-            bin_dir = os.path.join(prefix_dir, "Code", "Build", "Binaries-%s-%s" % (plat_parts[0], plat_parts[-1]))
+            bin_dir = os.path.join(prefix_dir, "Code", "Build", "Binaries-%s-%s-%s" % (plat_parts[0], plat_parts[1], plat_parts[-1]))
             extension_plugin_path = join(bin_dir, "PlugIns")
             target_plugin_path = join("platform", plat, "PlugIns")
             copy_file_to_zip(extension_plugin_path, target_plugin_path, "PythonEngine%s.so" % python_version, zfile)

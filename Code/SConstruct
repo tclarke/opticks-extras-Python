@@ -81,7 +81,7 @@ env.Qt4AddModules(env["QT_MODULES"])
 env.AppendUnique(CXXFLAGS=["-I%s" % OPTICKSDEPENDENCIESINCLUDE])
 
 env['SHLIBPREFIX'] = ""
-env.Append(CPPDEFINES=["_USEDLL"],
+env.Append(CPPDEFINES=["_USEDLL",'PYTHON_VERSION=\\"$PYTHONVERSION\\"'],
            LIBPATH=env["LIBDIR"])
 if OPTICKSPLATFORM == 'solaris-sparc':
    env.Append(CXXFLAGS="-library=stlport4 -m64 -xcode=pic32 -erroff=nonewline",
@@ -131,6 +131,7 @@ if OS != "windows":
 plugins = map(lambda x: os.path.basename(x),
               map(lambda x: x[0],
                   filter(lambda x: 'ModuleManager.cpp' in x[2] or 'modulemanager.cpp' in x[2],os.walk('.'))))
+plugins.append("PythonEngine")
 
 # check for extra vars
 if os.path.exists(".extravars"):
