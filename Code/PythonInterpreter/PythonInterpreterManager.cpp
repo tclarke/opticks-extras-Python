@@ -21,6 +21,7 @@ REGISTER_PLUGIN_BASIC(Python, PythonInterpreterManager);
 
 PythonInterpreterManager::PythonInterpreterManager() :
    mpAppServices(Service<ApplicationServices>().get()),
+   mAppShuttingDown(false),
    mpModule(NULL),
    mpInterpreter(NULL)
 {
@@ -322,6 +323,10 @@ bool PythonInterpreterManager::isStarted() const
 bool PythonInterpreterManager::start()
 {
    bool alreadyStarted = false;
+   if (mAppShuttingDown)
+   {
+      return false;
+   }
    if (mpModule == NULL)
    {
       //if we haven't loaded PythonEngine dynamic library and retrieved PythonInterpreter
@@ -390,6 +395,7 @@ bool PythonInterpreterManager::start()
 
 void PythonInterpreterManager::applicationClosed(Subject& subject, const std::string& signal, const boost::any& data)
 {
+   mAppShuttingDown = true;
    if (mpModule != NULL)
    {
       void (*shutdown_python_engine)() = 

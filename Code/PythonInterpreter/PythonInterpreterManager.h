@@ -41,6 +41,7 @@ private:
    AttachmentPtr<ApplicationServices> mpAppServices;
    void applicationClosed(Subject& subject, const std::string& signal, const boost::any& data);
 
+   bool mAppShuttingDown;
    DynamicModule* mpModule;
    PythonInterpreter* mpInterpreter;
    std::string mStartupMessage;
