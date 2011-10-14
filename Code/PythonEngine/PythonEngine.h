@@ -20,6 +20,7 @@
 
 class External;
 
+extern "C" PyObject* transmitOutput(PyObject* pSelf, PyObject* pArgs);
 extern "C" LINKAGE PythonInterpreter* init_python_engine(External* pServices);
 extern "C" LINKAGE void shutdown_python_engine();
 

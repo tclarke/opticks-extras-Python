@@ -10,6 +10,7 @@
 #include "OpticksModule.h"
 #include "PlugInRegistration.h"
 #include "PythonCommon.h"
+#include "PythonEngine.h"
 #include "PythonVersion.h"
 
 namespace OpticksModule
@@ -30,6 +31,7 @@ namespace OpticksModule
       {"handle", get_handle, METH_NOARGS, "Retrieve an opaque handle to the Opticks services object. " \
                                           "This is used when initializing modules within a .pyd file."},
       {"pythonVersion", get_python_version, METH_NOARGS, "Retrieve the version of the Python plug-in as a string."},
+      {"send_output", transmitOutput, METH_VARARGS, "Send output back to Opticks."},
       {NULL, NULL, 0, NULL} // sentinel
    };
 } // namespace

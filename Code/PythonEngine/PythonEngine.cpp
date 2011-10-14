@@ -23,14 +23,24 @@
 namespace
 {
    PythonEngine* spEngine = NULL;
-   void transmitOutput(char* pText, int32_t length, int32_t error)
+};
+
+PyObject* transmitOutput(PyObject* pSelf, PyObject* pArgs)
+{
+   if (spEngine == NULL)
    {
-      if (spEngine == NULL)
-      {
-         return;
-      }
-      std::string message(pText, length);
-      if (error)
+      Py_RETURN_NONE;
+   }
+   PyObject* pString = NULL;
+   unsigned char error = 1;
+   if (!PyArg_ParseTuple(pArgs, "Sb", &pString, &error))
+   {
+      return NULL;
+   }
+   if (pString != NULL)
+   {
+      std::string message(PyString_AsString(pString));
+      if (error != 0)
       {
          spEngine->sendError(message);
       }
@@ -39,7 +49,8 @@ namespace
          spEngine->sendOutput(message);
       }
    }
-};
+   Py_RETURN_NONE;
+}
 
 extern "C" LINKAGE PythonInterpreter* init_python_engine(External* pExternal)
 {
@@ -133,16 +144,7 @@ bool PythonEngine::startPython()
       checkErr();
       auto_obj interpDict(PyModule_GetDict(mInterpModule));
       checkErr();
-
-      auto_obj sendOutputFuncPointer(PyCObject_FromVoidPtr(reinterpret_cast<void*>(&transmitOutput), NULL), true);
-      checkErr();
-      PyObject_SetAttrString(mInterpModule, "_send_output_c_func_pointer", sendOutputFuncPointer);
-      checkErr();
-      auto_obj strConnectIo(PyDict_GetItemString(interpDict, "connect_io"));
-      checkErr();
-      auto_obj strConnectIoRet(PyObject_CallObject(strConnectIo, NULL), true);
-      checkErr();
-
+      
       auto_obj strBufStream(PyDict_GetItemString(interpDict, "StrBufStream"));
       checkErr();
       mStdin.reset(PyObject_CallObject(strBufStream, NULL), true);
