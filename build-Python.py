@@ -22,7 +22,8 @@ aeb_platform_mappings = {'win32':'win32-x86-msvc10.0-release',
                          'linux-debug':'linux-x86_64-gcc4-debug'}
 
 python_versions = {'25': ['win32', 'win32-debug'],
-                   '26': ['win32', 'win32-debug', 'win64', 'win64-debug']}
+                   '26': ['win32', 'win32-debug', 'win64', 'win64-debug'],
+                   '27': ['win32', 'win32-debug', 'win64', 'win64-debug']}
 
 def execute_process(args, bufsize=0, executable=None, preexec_fn=None,
       close_fds=None, shell=False, cwd=None, env=None,
@@ -468,6 +469,10 @@ def build_installer(aeb_platforms=[], python_version=None, aeb_output=None,
     manifest["version"] = version_info["PYTHON_VERSION_NUMBER"][1:-1]
     manifest["name"] = version_info["PYTHON_NAME"][1:-1] + " " + python_version_str
     manifest["description"] = version_info["PYTHON_NAME_LONG"][1:-1] + " for Python version %s" % python_version_str
+    #### DEPRECATE 2.5 - remove this when 2.5 is removed from the project ###
+    if python_version == "25":
+       manifest["description"] += "\nWARNING: Python version 2.5 support is deprecated and will be removed in future releases."
+    ######
     aebl_platform_str = ""
     for platform in aeb_platforms:
         aebl_platform_str += "<aebl:targetPlatform>%s</aebl:targetPlatform>\n" % (platform)
